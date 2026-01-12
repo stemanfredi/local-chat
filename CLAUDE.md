@@ -140,6 +140,14 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 - Settings: Account/login form (guest only), Model, Sync, About
 - Users: User list with admin toggle and delete (admin only)
 
+### Model Loading
+
+- First visit (new browser): no auto-load
+- Return visit: auto-load last successfully loaded model (cached)
+- Per-browser storage, but user-specific if logged in
+- Setting key: `lastLoadedModel` (guest) or `lastLoadedModel:<userId>` (logged in)
+- On login/logout: auto-load that user/guest's last model
+
 ### API Endpoints
 
 | Method | Endpoint | Auth | Description |

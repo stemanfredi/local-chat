@@ -1,6 +1,6 @@
 import { $ } from './utils/dom.js';
 import { events, EVENTS } from './utils/events.js';
-import { state, loadState } from './state.js';
+import { state, loadState, saveLastLoadedModel, getLastLoadedModel } from './state.js';
 import { webllm } from './services/webllm.js';
 import { syncService } from './services/sync.js';
 import { Sidebar } from './components/sidebar.js';
@@ -32,7 +32,25 @@ class App {
         // Bind global events
         this.bindEvents();
 
+        // Auto-load last used model for current user/guest
+        await this.autoLoadModel();
+
         console.log('Local Chat initialized');
+    }
+
+    /**
+     * Auto-load the last successfully loaded model for current user/guest
+     */
+    async autoLoadModel() {
+        const lastModel = await getLastLoadedModel();
+        if (lastModel) {
+            console.log('Auto-loading last used model:', lastModel);
+            try {
+                await webllm.loadModel(lastModel);
+            } catch (error) {
+                console.error('Failed to auto-load model:', error);
+            }
+        }
     }
 
     bindEvents() {
@@ -46,8 +64,10 @@ class App {
             this.showModelLoading(progress, text);
         });
 
-        events.on(EVENTS.MODEL_LOADED, () => {
+        events.on(EVENTS.MODEL_LOADED, async ({ modelId }) => {
             this.hideModelLoading();
+            // Save as last loaded model for current user/guest
+            await saveLastLoadedModel(modelId);
         });
 
         events.on(EVENTS.MODEL_ERROR, ({ error }) => {
@@ -56,12 +76,16 @@ class App {
         });
 
         // Auth events
-        events.on(EVENTS.AUTH_LOGIN, () => {
+        events.on(EVENTS.AUTH_LOGIN, async () => {
             console.log('User logged in:', state.user?.username);
+            // Auto-load user's last model (may differ from guest's)
+            await this.autoLoadModel();
         });
 
-        events.on(EVENTS.AUTH_LOGOUT, () => {
+        events.on(EVENTS.AUTH_LOGOUT, async () => {
             console.log('User logged out');
+            // Auto-load guest's last model (may differ from user's)
+            await this.autoLoadModel();
         });
 
         // Keyboard shortcuts

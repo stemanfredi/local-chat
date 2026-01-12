@@ -104,6 +104,32 @@ export async function saveSetting(key, value) {
 }
 
 /**
+ * Get the lastLoadedModel key (user-specific if logged in)
+ * @returns {string}
+ */
+function getLastLoadedModelKey() {
+    return state.user ? `lastLoadedModel:${state.user.id}` : 'lastLoadedModel';
+}
+
+/**
+ * Save the last successfully loaded model
+ * @param {string} modelId
+ */
+export async function saveLastLoadedModel(modelId) {
+    const key = getLastLoadedModelKey();
+    await db.setSetting(key, modelId);
+}
+
+/**
+ * Get the last successfully loaded model for current user/guest
+ * @returns {Promise<string|null>}
+ */
+export async function getLastLoadedModel() {
+    const key = getLastLoadedModelKey();
+    return db.getSetting(key);
+}
+
+/**
  * Select a chat
  * @param {number} localId
  */
