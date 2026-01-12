@@ -1,9 +1,10 @@
 import { $, clearChildren } from '../utils/dom.js';
 import { events, EVENTS } from '../utils/events.js';
-import { state, saveSetting } from '../state.js';
+import { state, saveSetting, saveLastLoadedEmbedModel } from '../state.js';
 import { webllm } from '../services/webllm.js';
 import { syncService } from '../services/sync.js';
 import { documentService } from '../services/documents.js';
+import { rag } from '../services/rag.js';
 import { authApi } from '../api/auth.js';
 import { usersApi } from '../api/users.js';
 import { SYNC_MODES, SETTINGS_KEYS } from '../../../shared/constants.js';
@@ -84,7 +85,7 @@ export class Panel {
             ` : ''}
 
             <div class="panel-section">
-                <div class="panel-section-title">Model</div>
+                <div class="panel-section-title">Chat Model</div>
                 <div class="panel-option">
                     <label class="panel-label" for="inference-model">Inference Model</label>
                     <select class="panel-select" id="inference-model">
@@ -96,6 +97,22 @@ export class Panel {
                 </div>
                 <div class="panel-option">
                     <button class="panel-btn" id="refresh-models-btn">Refresh Model List</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-section-title">Embedding Model (RAG)</div>
+                <div class="panel-option">
+                    <label class="panel-label" for="embedding-model">Embedding Model</label>
+                    <select class="panel-select" id="embedding-model">
+                        <option value="">Loading models...</option>
+                    </select>
+                    <p class="panel-hint">Required for document search in chat</p>
+                </div>
+                <div class="panel-option">
+                    <button class="panel-btn-primary" id="load-embed-model-btn">
+                        ${state.isEmbedModelLoading ? 'Loading...' : (webllm.isEmbeddingReady() ? 'Loaded' : 'Load Embedding Model')}
+                    </button>
                 </div>
             </div>
 
@@ -129,6 +146,7 @@ export class Panel {
         `;
 
         this.loadModels();
+        this.loadEmbedModels();
         this.bindSettingsEvents();
 
         // Set current sync mode
@@ -222,6 +240,41 @@ export class Panel {
                 alert(`Sync failed: ${error.message}`);
             }
         });
+
+        // Embedding model controls
+        const embedModelSelect = $('#embedding-model', this.contentEl);
+        const loadEmbedModelBtn = $('#load-embed-model-btn', this.contentEl);
+
+        embedModelSelect?.addEventListener('change', async () => {
+            await saveSetting(SETTINGS_KEYS.EMBEDDING_MODEL, embedModelSelect.value);
+        });
+
+        loadEmbedModelBtn?.addEventListener('click', async () => {
+            const modelId = embedModelSelect?.value;
+            if (!modelId) return;
+
+            loadEmbedModelBtn.disabled = true;
+            loadEmbedModelBtn.textContent = 'Loading...';
+
+            try {
+                await webllm.loadEmbeddingModel(modelId);
+                await saveLastLoadedEmbedModel(modelId);
+                loadEmbedModelBtn.textContent = 'Loaded';
+
+                // Embed any documents that don't have embeddings yet
+                const stats = await rag.getStats();
+                if (stats.pending > 0) {
+                    loadEmbedModelBtn.textContent = `Embedding ${stats.pending} docs...`;
+                    await rag.embedAllDocuments();
+                    loadEmbedModelBtn.textContent = 'Loaded';
+                }
+            } catch (error) {
+                alert(`Failed to load embedding model: ${error.message}`);
+                loadEmbedModelBtn.textContent = 'Load Embedding Model';
+            } finally {
+                loadEmbedModelBtn.disabled = false;
+            }
+        });
     }
 
     async loadModels() {
@@ -262,6 +315,37 @@ export class Panel {
             }
         } catch (error) {
             console.error('Failed to load models:', error);
+            modelSelect.innerHTML = '<option value="">Failed to load models</option>';
+        }
+    }
+
+    async loadEmbedModels() {
+        const modelSelect = $('#embedding-model', this.contentEl);
+        if (!modelSelect) return;
+
+        try {
+            const models = await webllm.getEmbeddingModels();
+            clearChildren(modelSelect);
+
+            if (models.length === 0) {
+                modelSelect.innerHTML = '<option value="">No embedding models available</option>';
+                return;
+            }
+
+            for (const model of models) {
+                const option = document.createElement('option');
+                option.value = model.id;
+                option.textContent = model.name;
+                if (model.id === state.embeddingModel) option.selected = true;
+                modelSelect.appendChild(option);
+            }
+
+            // Select first if none selected
+            if (!state.embeddingModel && models.length > 0) {
+                modelSelect.value = models[0].id;
+            }
+        } catch (error) {
+            console.error('Failed to load embedding models:', error);
             modelSelect.innerHTML = '<option value="">Failed to load models</option>';
         }
     }
@@ -366,6 +450,9 @@ export class Panel {
     // ==================== Documents ====================
 
     async renderDocuments() {
+        const stats = await rag.getStats();
+        const hasEmbedModel = webllm.isEmbeddingReady();
+
         this.contentEl.innerHTML = `
             <div class="panel-section">
                 <div class="panel-option">
@@ -374,6 +461,18 @@ export class Panel {
                            accept="${documentService.getAcceptString()}" multiple>
                     <p class="panel-hint">Supported: PDF, DOCX, TXT, MD, JSON, JS, TS, PY, HTML, CSS</p>
                 </div>
+            </div>
+            <div class="panel-section">
+                <div class="panel-section-title">RAG Status</div>
+                <p class="panel-text-muted">
+                    ${stats.embedded}/${stats.total} documents embedded
+                    ${!hasEmbedModel ? ' (load embedding model in Settings)' : ''}
+                </p>
+                ${hasEmbedModel && stats.pending > 0 ? `
+                    <div class="panel-option">
+                        <button class="panel-btn" id="embed-all-btn">Embed ${stats.pending} Documents</button>
+                    </div>
+                ` : ''}
             </div>
             <div class="panel-section">
                 <div class="panel-section-title">Your Documents</div>
@@ -403,7 +502,22 @@ export class Panel {
 
             // Clear input and reload list
             uploadInput.value = '';
-            await this.loadDocuments();
+            await this.renderDocuments();
+        });
+
+        // Embed all button
+        const embedAllBtn = $('#embed-all-btn', this.contentEl);
+        embedAllBtn?.addEventListener('click', async () => {
+            embedAllBtn.disabled = true;
+            embedAllBtn.textContent = 'Embedding...';
+
+            try {
+                const count = await rag.embedAllDocuments();
+                await this.renderDocuments();
+            } catch (error) {
+                alert(`Failed to embed documents: ${error.message}`);
+                await this.renderDocuments();
+            }
         });
     }
 
@@ -431,12 +545,16 @@ export class Panel {
         listEl.innerHTML = this.documents.map(doc => {
             const icon = this.getDocumentIcon(doc.type);
             const size = doc.content ? `${Math.round(doc.content.length / 1024)}KB` : '';
+            const hasEmbedding = !!doc.embedding;
             return `
                 <div class="document-row" data-id="${doc.id}">
                     <div class="document-row-icon">${icon}</div>
                     <div class="document-row-info">
                         <div class="document-row-name">${doc.name}</div>
-                        <div class="document-row-meta">${doc.type.toUpperCase()} ${size ? `· ${size}` : ''}</div>
+                        <div class="document-row-meta">
+                            ${doc.type.toUpperCase()} ${size ? `· ${size}` : ''}
+                            ${hasEmbedding ? ' · Embedded' : ''}
+                        </div>
                     </div>
                     <button class="document-row-delete" data-id="${doc.id}" title="Delete">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -456,7 +574,7 @@ export class Panel {
                 if (confirm(`Delete "${doc.name}"?`)) {
                     try {
                         await documentService.deleteDocument(docId);
-                        await this.loadDocuments();
+                        await this.renderDocuments();
                     } catch (error) {
                         alert(`Failed: ${error.message}`);
                     }

@@ -396,6 +396,52 @@ body {
     cursor: not-allowed;
 }
 
+/* Mention autocomplete */
+.mention-autocomplete {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    margin-bottom: var(--spacing-xs);
+    background-color: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: var(--z-tooltip);
+}
+
+.mention-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-sm) var(--spacing-md);
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+}
+
+.mention-item:hover,
+.mention-item.selected {
+    background-color: var(--color-bg-tertiary);
+}
+
+.mention-name {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mention-type {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    margin-left: var(--spacing-sm);
+    flex-shrink: 0;
+}
+
 /* Empty state */
 .empty-state {
     display: flex;

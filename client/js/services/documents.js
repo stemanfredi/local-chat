@@ -1,6 +1,8 @@
 import { db } from '../db/index.js';
 import { state } from '../state.js';
 import { events, EVENTS } from '../utils/events.js';
+import { webllm } from './webllm.js';
+import { rag } from './rag.js';
 
 /**
  * Document parsing and management service
@@ -16,8 +18,10 @@ class DocumentService {
      */
     async initPdfjs() {
         if (this.pdfjs) return;
-        this.pdfjs = await import('https://esm.run/pdfjs-dist@5.4.530/build/pdf.min.mjs');
-        this.pdfjs.GlobalWorkerOptions.workerSrc = 'https://esm.run/pdfjs-dist@5.4.530/build/pdf.worker.min.mjs';
+
+        // Use unpkg CDN - more reliable for pdf.js
+        this.pdfjs = await import('https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.min.mjs');
+        this.pdfjs.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs';
     }
 
     /**
@@ -79,7 +83,14 @@ class DocumentService {
         await this.initPdfjs();
 
         const arrayBuffer = await file.arrayBuffer();
-        const pdf = await this.pdfjs.getDocument({ data: arrayBuffer }).promise;
+
+        // pdfjs-dist exports getDocument directly
+        const getDocument = this.pdfjs.getDocument || this.pdfjs.default?.getDocument;
+        if (!getDocument) {
+            throw new Error('Failed to load pdf.js: getDocument not found');
+        }
+
+        const pdf = await getDocument({ data: arrayBuffer }).promise;
 
         const textParts = [];
         for (let i = 1; i <= pdf.numPages; i++) {
@@ -117,13 +128,18 @@ class DocumentService {
     /**
      * Upload and store a document
      * @param {File} file
+     * @param {boolean} generateEmbedding - Generate embedding if model is loaded
      * @returns {Promise<Object>}
      */
-    async uploadDocument(file) {
+    async uploadDocument(file, generateEmbedding = true) {
         events.emit(EVENTS.DOCUMENT_UPLOADING, { name: file.name });
 
         try {
             const { name, type, content } = await this.parseFile(file);
+
+            if (!content || content.trim().length === 0) {
+                throw new Error('No content could be extracted from file');
+            }
 
             const doc = await db.createDocument({
                 name,
@@ -132,6 +148,16 @@ class DocumentService {
             });
 
             events.emit(EVENTS.DOCUMENT_UPLOADED, doc);
+
+            // Generate embedding if model is loaded
+            if (generateEmbedding && webllm.isEmbeddingReady()) {
+                try {
+                    await rag.embedDocument(doc.id);
+                } catch (error) {
+                    // Don't fail upload if embedding fails
+                }
+            }
+
             return doc;
         } catch (error) {
             events.emit(EVENTS.DOCUMENT_ERROR, { name: file.name, error: error.message });

@@ -22,6 +22,7 @@ Local-first AI chat application using WebLLM for browser-based inference, with o
 │  - Panel          │  - Users API       │     messages,      │
 │                   │  - Sync            │     documents,     │
 │                   │  - Documents       │     settings)      │
+│                   │  - RAG             │                    │
 └─────────────────────────────────────────────────────────────┘
                               │ (optional sync)
                               ▼
@@ -69,7 +70,7 @@ local-chat/
 │       ├── state.js       # Global state
 │       ├── db/            # IndexedDB wrapper
 │       ├── api/           # client, auth, users, sync
-│       ├── services/      # webllm, sync, documents
+│       ├── services/      # webllm, sync, documents, rag
 │       ├── components/    # sidebar, chat-view, panel
 │       └── utils/         # dom, events
 │
@@ -105,11 +106,11 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 | Auth | JWT stateless (jsonwebtoken ^9.0.3) |
 
 ### Client Dependencies (CDN)
-| Package | Version |
-|---------|---------|
-| @mlc-ai/web-llm | 0.2.80 |
-| pdfjs-dist | 5.4.530 |
-| mammoth | 1.11.0 |
+| Package | Version | CDN |
+|---------|---------|-----|
+| @mlc-ai/web-llm | 0.2.80 | esm.run |
+| pdfjs-dist | 4.4.168 | unpkg |
+| mammoth | 1.11.0 | esm.run |
 
 ### Entities
 
@@ -135,7 +136,7 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 **ChatView**
 - Header with menu toggle, title, model status
 - Message list with streaming support
-- Input with send button
+- Input with send button and @mention autocomplete for documents
 
 **Panel** (slides from right)
 - Mode: 'settings', 'users', or 'documents' (controlled by dropdown selection)
@@ -160,6 +161,31 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 - mammoth v1.11.0 for DOCX parsing
 
 **Storage**: IndexedDB locally, SQLite on server, synced via /api/sync
+
+### RAG (Retrieval Augmented Generation)
+
+**Embedding Model**:
+- Loaded separately from chat model via WebLLM
+- Auto-load last used model on return visit (per-user)
+- Setting key: `lastLoadedEmbedModel` (guest) or `lastLoadedEmbedModel:<userId>` (logged in)
+
+**@Mention Documents**:
+- Type `@` in chat to show document autocomplete
+- Select with arrow keys + Enter/Tab, or click
+- Syntax: `@filename` or `@"filename with spaces"`
+- Multiple mentions: `@doc1 @doc2 compare these`
+- Mentioned docs included in full (up to 8KB each)
+
+**Auto RAG Search** (fallback when no @mentions):
+- Documents split into ~1000 char chunks with 200 char overlap
+- Chunks stored with embeddings in document's `embedding` field as JSON
+- Format: `{chunks: [{text, docName, index, embedding}, ...]}`
+- Cosine similarity search on user query
+- Top 5 most relevant chunks retrieved (min score: 0.2)
+
+**Context Injection**:
+- @mentioned docs or RAG chunks injected as system message
+- Only when embedding model is loaded and documents have embeddings
 
 ### API Endpoints
 
@@ -214,10 +240,6 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 
 ### Current
 
-- [ ] Phase 5: RAG: embedding + retrieval in chat
-
-### Backlog
-
 - [ ] Phase 6: PWA manifest + service worker + UI polish
 
 ### Done
@@ -227,6 +249,7 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 - [x] Phase 2: Auth + server + admin user panel + simplified UI
 - [x] Phase 3: Server sync + pure offline/offline-first toggle
 - [x] Phase 4: Document library + parsing (pdf.js, mammoth)
+- [x] Phase 5: RAG with embedding + retrieval in chat
 
 ---
 

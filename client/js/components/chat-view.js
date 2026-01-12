@@ -2,6 +2,7 @@ import { $, el, clearChildren, parseMarkdown, autoResize, escapeHtml } from '../
 import { events, EVENTS } from '../utils/events.js';
 import { state, addMessage, updateMessage, createChat } from '../state.js';
 import { webllm } from '../services/webllm.js';
+import { rag } from '../services/rag.js';
 import { MESSAGE_ROLES } from '../../../shared/constants.js';
 
 /**
@@ -35,10 +36,11 @@ export class ChatView {
             </div>
             <div class="input-container">
                 <div class="input-wrapper">
+                    <div class="mention-autocomplete hidden" id="mention-autocomplete"></div>
                     <textarea
                         class="chat-input"
                         id="chat-input"
-                        placeholder="Type a message..."
+                        placeholder="Type a message... (use @filename to reference docs)"
                         rows="1"
                     ></textarea>
                     <button class="send-btn" id="send-btn" disabled>
@@ -58,6 +60,10 @@ export class ChatView {
         this.modelStatusDot = $('#model-status-dot', this.container);
         this.modelStatusText = $('#model-status-text', this.container);
         this.headerTitle = $('#header-title', this.container);
+        this.autocomplete = $('#mention-autocomplete', this.container);
+
+        this.mentionStart = -1; // Track where @ mention started
+        this.selectedIndex = 0; // Track selected autocomplete item
 
         this.renderMessages();
         this.updateModelStatus();
@@ -189,9 +195,33 @@ export class ChatView {
         this.input.addEventListener('input', () => {
             autoResize(this.input);
             this.updateSendButton();
+            this.handleMentionInput();
         });
 
         this.input.addEventListener('keydown', (e) => {
+            // Handle autocomplete navigation
+            if (!this.autocomplete.classList.contains('hidden')) {
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    this.navigateAutocomplete(1);
+                    return;
+                }
+                if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    this.navigateAutocomplete(-1);
+                    return;
+                }
+                if (e.key === 'Enter' || e.key === 'Tab') {
+                    e.preventDefault();
+                    this.selectAutocompleteItem();
+                    return;
+                }
+                if (e.key === 'Escape') {
+                    this.hideAutocomplete();
+                    return;
+                }
+            }
+
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 this.send();
@@ -247,6 +277,107 @@ export class ChatView {
         this.sendBtn.disabled = !canSend;
     }
 
+    // ==================== Mention Autocomplete ====================
+
+    async handleMentionInput() {
+        const text = this.input.value;
+        const cursorPos = this.input.selectionStart;
+
+        // Find @ before cursor
+        let atPos = -1;
+        for (let i = cursorPos - 1; i >= 0; i--) {
+            if (text[i] === '@') {
+                atPos = i;
+                break;
+            }
+            // Stop if we hit a space or newline (not in a mention)
+            if (text[i] === ' ' || text[i] === '\n') {
+                break;
+            }
+        }
+
+        if (atPos === -1) {
+            this.hideAutocomplete();
+            return;
+        }
+
+        this.mentionStart = atPos;
+        const query = text.slice(atPos + 1, cursorPos);
+
+        // Search for matching documents
+        const docs = await rag.searchDocuments(query);
+
+        if (docs.length === 0) {
+            this.hideAutocomplete();
+            return;
+        }
+
+        this.showAutocomplete(docs);
+    }
+
+    showAutocomplete(docs) {
+        this.autocompleteItems = docs;
+        this.selectedIndex = 0;
+
+        this.autocomplete.innerHTML = docs.map((doc, i) => `
+            <div class="mention-item ${i === 0 ? 'selected' : ''}" data-index="${i}">
+                <span class="mention-name">${doc.name}</span>
+                <span class="mention-type">${doc.type}</span>
+            </div>
+        `).join('');
+
+        // Add click handlers
+        this.autocomplete.querySelectorAll('.mention-item').forEach(item => {
+            item.addEventListener('click', () => {
+                this.selectedIndex = parseInt(item.dataset.index);
+                this.selectAutocompleteItem();
+            });
+        });
+
+        this.autocomplete.classList.remove('hidden');
+    }
+
+    hideAutocomplete() {
+        this.autocomplete.classList.add('hidden');
+        this.mentionStart = -1;
+        this.autocompleteItems = [];
+    }
+
+    navigateAutocomplete(direction) {
+        if (!this.autocompleteItems?.length) return;
+
+        this.selectedIndex = (this.selectedIndex + direction + this.autocompleteItems.length) % this.autocompleteItems.length;
+
+        // Update selection UI
+        this.autocomplete.querySelectorAll('.mention-item').forEach((item, i) => {
+            item.classList.toggle('selected', i === this.selectedIndex);
+        });
+    }
+
+    selectAutocompleteItem() {
+        if (!this.autocompleteItems?.length || this.mentionStart === -1) return;
+
+        const doc = this.autocompleteItems[this.selectedIndex];
+        const text = this.input.value;
+        const cursorPos = this.input.selectionStart;
+
+        // Build the mention text (quote if has spaces)
+        const mention = doc.name.includes(' ') ? `@"${doc.name}"` : `@${doc.name}`;
+
+        // Replace @query with the full mention
+        const before = text.slice(0, this.mentionStart);
+        const after = text.slice(cursorPos);
+        this.input.value = before + mention + ' ' + after;
+
+        // Move cursor after the mention
+        const newPos = this.mentionStart + mention.length + 1;
+        this.input.setSelectionRange(newPos, newPos);
+
+        this.hideAutocomplete();
+        this.input.focus();
+        this.updateSendButton();
+    }
+
     async send() {
         const content = this.input.value.trim();
         if (!content || state.isStreaming || !webllm.isReady()) return;
@@ -271,10 +402,35 @@ export class ChatView {
 
         try {
             // Build messages for context
-            const contextMessages = state.messages.map(m => ({
-                role: m.role,
-                content: m.content
-            }));
+            const contextMessages = [];
+            let systemContext = '';
+
+            // Check for @mentions first (explicit document references)
+            const { context: mentionContext, cleanText } = await rag.getMentionedContext(content);
+            if (mentionContext) {
+                systemContext = mentionContext;
+            } else {
+                // Fall back to RAG search if no @mentions
+                const ragContext = await rag.getContext(content);
+                if (ragContext) {
+                    systemContext = ragContext;
+                }
+            }
+
+            if (systemContext) {
+                contextMessages.push({
+                    role: MESSAGE_ROLES.SYSTEM,
+                    content: `You are a helpful assistant. Answer based on the following context from the user's documents. The context contains relevant information - use it to answer the question.\n\n${systemContext}`
+                });
+            }
+
+            // Add conversation history
+            for (const m of state.messages) {
+                contextMessages.push({
+                    role: m.role,
+                    content: m.content
+                });
+            }
 
             // Stream response
             let fullContent = '';

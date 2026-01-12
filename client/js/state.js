@@ -21,6 +21,10 @@ const initialState = {
     currentModel: null,
     availableModels: [],
 
+    // Embedding model
+    isEmbedModelLoading: false,
+    currentEmbedModel: null,
+
     // Streaming
     isStreaming: false,
     streamingContent: '',
@@ -126,6 +130,32 @@ export async function saveLastLoadedModel(modelId) {
  */
 export async function getLastLoadedModel() {
     const key = getLastLoadedModelKey();
+    return db.getSetting(key);
+}
+
+/**
+ * Get the lastLoadedEmbedModel key (user-specific if logged in)
+ * @returns {string}
+ */
+function getLastLoadedEmbedModelKey() {
+    return state.user ? `lastLoadedEmbedModel:${state.user.id}` : 'lastLoadedEmbedModel';
+}
+
+/**
+ * Save the last successfully loaded embedding model
+ * @param {string} modelId
+ */
+export async function saveLastLoadedEmbedModel(modelId) {
+    const key = getLastLoadedEmbedModelKey();
+    await db.setSetting(key, modelId);
+}
+
+/**
+ * Get the last successfully loaded embedding model for current user/guest
+ * @returns {Promise<string|null>}
+ */
+export async function getLastLoadedEmbedModel() {
+    const key = getLastLoadedEmbedModelKey();
     return db.getSetting(key);
 }
 

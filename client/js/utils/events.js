@@ -95,6 +95,11 @@ export const EVENTS = {
     MODEL_LOADED: 'model:loaded',
     MODEL_ERROR: 'model:error',
 
+    // Embedding model events
+    EMBED_MODEL_LOADING: 'embed:loading',
+    EMBED_MODEL_LOADED: 'embed:loaded',
+    EMBED_MODEL_ERROR: 'embed:error',
+
     // Sync events
     SYNC_STARTED: 'sync:started',
     SYNC_COMPLETED: 'sync:completed',
@@ -105,6 +110,9 @@ export const EVENTS = {
     DOCUMENT_UPLOADED: 'document:uploaded',
     DOCUMENT_DELETED: 'document:deleted',
     DOCUMENT_ERROR: 'document:error',
+    DOCUMENT_EMBEDDING: 'document:embedding',
+    DOCUMENT_EMBEDDED: 'document:embedded',
+    DOCUMENT_EMBED_ERROR: 'document:embed_error',
 
     // Auth events
     AUTH_LOGIN: 'auth:login',
