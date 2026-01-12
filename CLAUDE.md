@@ -20,7 +20,7 @@ Local-first AI chat application using WebLLM for browser-based inference, with o
 │  - Sidebar        │  - WebLLM          │  - IndexedDB       │
 │  - ChatView       │  - Auth API        │    (chats,         │
 │  - Panel          │  - Users API       │     messages,      │
-│                   │                    │     settings)      │
+│                   │  - Sync            │     settings)      │
 └─────────────────────────────────────────────────────────────┘
                               │ (optional sync)
                               ▼
@@ -29,9 +29,9 @@ Local-first AI chat application using WebLLM for browser-based inference, with o
 ├─────────────────────────────────────────────────────────────┤
 │  Routes           │  Services          │  Storage           │
 │  - /api/auth      │  - Auth (JWT)      │  - SQLite          │
-│  - /api/users     │  - Sync            │    (users,         │
+│  - /api/users     │                    │    (users,         │
 │  - /api/chats     │                    │     chats,         │
-│                   │                    │     messages)      │
+│  - /api/sync      │                    │     messages)      │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -52,7 +52,7 @@ local-chat/
 │   ├── index.js           # HTTP server (static + API)
 │   ├── router.js          # API route dispatcher
 │   ├── middleware/        # cors, json, auth
-│   ├── routes/            # auth, users, chats
+│   ├── routes/            # auth, users, chats, sync
 │   ├── db/                # SQLite schema + queries
 │   └── services/          # auth (JWT, bcrypt)
 │
@@ -66,8 +66,8 @@ local-chat/
 │       ├── app.js         # Entry point
 │       ├── state.js       # Global state
 │       ├── db/            # IndexedDB wrapper
-│       ├── api/           # client, auth, users
-│       ├── services/      # webllm
+│       ├── api/           # client, auth, users, sync
+│       ├── services/      # webllm, sync
 │       ├── components/    # sidebar, chat-view, panel
 │       └── utils/         # dom, events
 │
@@ -157,10 +157,30 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 | PATCH | /api/chats/:id | Yes | Update chat |
 | DELETE | /api/chats/:id | Yes | Soft delete chat |
 | POST | /api/chats/:id/messages | Yes | Create message |
+| POST | /api/sync/pull | Yes | Get changes since timestamp |
+| POST | /api/sync/push | Yes | Push local changes |
 
 ### Validation Rules
 - Username: 3-30 chars, alphanumeric + underscore
 - Password: 8-100 chars
+
+### Sync
+
+**Modes**
+- Pure Offline: No sync, all data stays local only
+- Offline-First: Syncs with server when online, works offline
+
+**Strategy**
+- Last-write-wins based on updatedAt timestamp
+- Push local changes first, then pull server changes
+- Auto-sync every 30 seconds when in offline-first mode
+- Immediate sync on coming online
+- Manual "Sync Now" button in settings
+
+**syncStatus**
+- `local`: Created locally, never synced
+- `synced`: In sync with server
+- `pending`: Modified locally since last sync
 
 ---
 
@@ -168,11 +188,10 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 
 ### Current
 
-- [ ] Phase 3: Server sync + pure offline/offline-first toggle
+- [ ] Phase 4: Document library + parsing (pdf.js, mammoth)
 
 ### Backlog
 
-- [ ] Phase 4: Document library + parsing (pdf.js, mammoth)
 - [ ] Phase 5: RAG: embedding + retrieval in chat
 - [ ] Phase 6: PWA manifest + service worker + UI polish
 
@@ -181,6 +200,7 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 - [x] Project design and specification
 - [x] Phase 1: Basic chat + WebLLM streaming + local IndexedDB
 - [x] Phase 2: Auth + server + admin user panel + simplified UI
+- [x] Phase 3: Server sync + pure offline/offline-first toggle
 
 ---
 

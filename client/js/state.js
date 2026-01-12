@@ -33,6 +33,10 @@ const initialState = {
     // Network
     isOnline: navigator.onLine,
 
+    // Sync
+    isSyncing: false,
+    lastSyncAt: null,
+
     // UI
     sidebarOpen: true,
     settingsOpen: false
@@ -82,6 +86,10 @@ export async function loadState() {
 
     // Load chats
     state.chats = await db.getAllChats();
+
+    // Load last sync time
+    const lastSyncAt = await db.getLastSyncAt();
+    if (lastSyncAt) state.lastSyncAt = lastSyncAt;
 }
 
 /**

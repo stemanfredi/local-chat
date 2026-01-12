@@ -2,6 +2,7 @@ import { $, clearChildren } from '../utils/dom.js';
 import { events, EVENTS } from '../utils/events.js';
 import { state, saveSetting } from '../state.js';
 import { webllm } from '../services/webllm.js';
+import { syncService } from '../services/sync.js';
 import { authApi } from '../api/auth.js';
 import { usersApi } from '../api/users.js';
 import { SYNC_MODES, SETTINGS_KEYS } from '../../../shared/constants.js';
@@ -99,6 +100,16 @@ export class Panel {
                     </select>
                     ${!state.user ? '<p class="panel-hint">Sign in to enable sync</p>' : ''}
                 </div>
+                ${state.user && state.syncMode === SYNC_MODES.OFFLINE_FIRST ? `
+                    <div class="panel-option">
+                        <p class="panel-text-muted" id="sync-status">
+                            ${state.isSyncing ? 'Syncing...' : (state.lastSyncAt ? `Last synced: ${new Date(state.lastSyncAt).toLocaleString()}` : 'Not synced yet')}
+                        </p>
+                        <button class="panel-btn" id="sync-now-btn" ${state.isSyncing ? 'disabled' : ''}>
+                            ${state.isSyncing ? 'Syncing...' : 'Sync Now'}
+                        </button>
+                    </div>
+                ` : ''}
             </div>
 
             <div class="panel-section">
@@ -188,6 +199,19 @@ export class Panel {
 
         syncModeSelect?.addEventListener('change', async () => {
             await saveSetting(SETTINGS_KEYS.SYNC_MODE, syncModeSelect.value);
+            // Re-render to show/hide sync status
+            this.renderSettings();
+        });
+
+        // Sync now button
+        const syncNowBtn = $('#sync-now-btn', this.contentEl);
+        syncNowBtn?.addEventListener('click', async () => {
+            try {
+                await syncService.sync();
+                this.renderSettings();
+            } catch (error) {
+                alert(`Sync failed: ${error.message}`);
+            }
         });
     }
 
@@ -337,6 +361,23 @@ export class Panel {
         events.on('panel:users', () => this.open('users'));
         events.on(EVENTS.AUTH_LOGIN, () => { if (this.mode === 'settings') this.render(); });
         events.on(EVENTS.AUTH_LOGOUT, () => { if (this.mode === 'settings') this.render(); });
+        events.on(EVENTS.SYNC_STARTED, () => { if (this.mode === 'settings') this.updateSyncStatus(); });
+        events.on(EVENTS.SYNC_COMPLETED, () => { if (this.mode === 'settings') this.updateSyncStatus(); });
+        events.on(EVENTS.SYNC_ERROR, () => { if (this.mode === 'settings') this.updateSyncStatus(); });
+    }
+
+    updateSyncStatus() {
+        const statusEl = $('#sync-status', this.contentEl);
+        const btnEl = $('#sync-now-btn', this.contentEl);
+        if (statusEl) {
+            statusEl.textContent = state.isSyncing
+                ? 'Syncing...'
+                : (state.lastSyncAt ? `Last synced: ${new Date(state.lastSyncAt).toLocaleString()}` : 'Not synced yet');
+        }
+        if (btnEl) {
+            btnEl.disabled = state.isSyncing;
+            btnEl.textContent = state.isSyncing ? 'Syncing...' : 'Sync Now';
+        }
     }
 
     open(mode = 'settings') {

@@ -2,6 +2,7 @@ import { $ } from './utils/dom.js';
 import { events, EVENTS } from './utils/events.js';
 import { state, loadState } from './state.js';
 import { webllm } from './services/webllm.js';
+import { syncService } from './services/sync.js';
 import { Sidebar } from './components/sidebar.js';
 import { ChatView } from './components/chat-view.js';
 import { Panel } from './components/panel.js';
@@ -24,6 +25,9 @@ class App {
         this.sidebar = new Sidebar($('#sidebar'));
         this.chatView = new ChatView($('#main'));
         this.panel = new Panel($('#panel'));
+
+        // Initialize sync service
+        syncService.init();
 
         // Bind global events
         this.bindEvents();

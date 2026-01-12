@@ -418,6 +418,130 @@ class Database {
             documents: await getByStatus('documents')
         };
     }
+
+    /**
+     * Mark records as synced
+     * @param {string} storeName
+     * @param {string[]} ids - Array of ULID ids
+     */
+    async markAsSynced(storeName, ids) {
+        if (ids.length === 0) return;
+
+        await this.ready;
+        const store = this.getStore(storeName, 'readwrite');
+
+        for (const id of ids) {
+            let record;
+            if (storeName === 'chats') {
+                // Chats use localId as keyPath but we have ULID
+                const index = store.index('id');
+                record = await this.promisify(index.get(id));
+            } else {
+                record = await this.promisify(store.get(id));
+            }
+
+            if (record) {
+                record.syncStatus = SYNC_STATUS.SYNCED;
+                await this.promisify(store.put(record));
+            }
+        }
+    }
+
+    /**
+     * Merge a chat from server (last-write-wins)
+     * @param {Object} serverChat
+     * @returns {Promise<boolean>} True if merged/created
+     */
+    async mergeChat(serverChat) {
+        await this.ready;
+        const store = this.getStore('chats', 'readwrite');
+        const index = store.index('id');
+
+        const existing = await this.promisify(index.get(serverChat.id));
+
+        if (existing) {
+            // Last-write-wins: only update if server is newer
+            if (new Date(serverChat.updatedAt) > new Date(existing.updatedAt)) {
+                const updated = {
+                    ...existing,
+                    title: serverChat.title,
+                    updatedAt: serverChat.updatedAt,
+                    deletedAt: serverChat.deletedAt,
+                    syncStatus: SYNC_STATUS.SYNCED
+                };
+                await this.promisify(store.put(updated));
+                return true;
+            }
+            return false;
+        }
+
+        // Insert new chat from server
+        const chat = {
+            id: serverChat.id,
+            title: serverChat.title,
+            createdAt: serverChat.createdAt,
+            updatedAt: serverChat.updatedAt,
+            deletedAt: serverChat.deletedAt,
+            syncStatus: SYNC_STATUS.SYNCED
+        };
+        await this.promisify(store.add(chat));
+        return true;
+    }
+
+    /**
+     * Merge a message from server (last-write-wins)
+     * @param {Object} serverMsg
+     * @returns {Promise<boolean>} True if merged/created
+     */
+    async mergeMessage(serverMsg) {
+        await this.ready;
+        const msgStore = this.getStore('messages', 'readwrite');
+
+        const existing = await this.promisify(msgStore.get(serverMsg.id));
+
+        if (existing) {
+            // Last-write-wins: only update if server is newer
+            if (new Date(serverMsg.updatedAt) > new Date(existing.updatedAt)) {
+                const updated = {
+                    ...existing,
+                    content: serverMsg.content,
+                    updatedAt: serverMsg.updatedAt,
+                    deletedAt: serverMsg.deletedAt,
+                    syncStatus: SYNC_STATUS.SYNCED
+                };
+                await this.promisify(msgStore.put(updated));
+                return true;
+            }
+            return false;
+        }
+
+        // Need to find local chat by ULID to get localId
+        const chatStore = this.getStore('chats');
+        const chatIndex = chatStore.index('id');
+        const chat = await this.promisify(chatIndex.get(serverMsg.chatId));
+
+        if (!chat) {
+            console.warn('Cannot merge message: chat not found', serverMsg.chatId);
+            return false;
+        }
+
+        // Insert new message from server
+        const message = {
+            id: serverMsg.id,
+            chatLocalId: chat.localId,
+            role: serverMsg.role,
+            content: serverMsg.content,
+            createdAt: serverMsg.createdAt,
+            updatedAt: serverMsg.updatedAt,
+            deletedAt: serverMsg.deletedAt,
+            syncStatus: SYNC_STATUS.SYNCED
+        };
+
+        // Need new transaction for messages store
+        const newMsgStore = this.getStore('messages', 'readwrite');
+        await this.promisify(newMsgStore.add(message));
+        return true;
+    }
 }
 
 // Singleton instance
