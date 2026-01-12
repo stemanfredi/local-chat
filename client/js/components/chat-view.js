@@ -87,7 +87,7 @@ export class ChatView {
         }
 
         // Render streaming message if active
-        if (state.isStreaming && state.streamingContent) {
+        if (state.isStreaming) {
             this.renderStreamingMessage();
         }
 
@@ -152,7 +152,8 @@ export class ChatView {
         );
 
         const textEl = $('.message-text', messageEl);
-        textEl.innerHTML = parseMarkdown(state.streamingContent) + '<span class="streaming-cursor"></span>';
+        const content = state.streamingContent || '';
+        textEl.innerHTML = (content ? parseMarkdown(content) : '') + '<span class="streaming-cursor"></span>';
 
         this.messagesContainer.appendChild(messageEl);
     }

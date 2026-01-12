@@ -140,9 +140,9 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 
 **Panel** (slides from right)
 - Mode: 'settings', 'users', or 'documents' (controlled by dropdown selection)
-- Settings: Account/login form (guest only), Model, Sync, About
+- Settings: Account/login form (guest only), Chat Model, Embedding Model (RAG), Sync, About
 - Users: User list with admin toggle and delete (admin only)
-- Documents: Upload and manage documents for RAG
+- Documents: Upload, manage, and embed documents for RAG (shows embedding status)
 
 ### Model Loading
 
@@ -157,8 +157,8 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 **Supported formats**: PDF, DOCX, TXT, MD, JSON, JS, TS, PY, HTML, CSS
 
 **Libraries** (loaded from CDN on demand):
-- pdf.js v5.4.530 for PDF parsing
-- mammoth v1.11.0 for DOCX parsing
+- pdf.js v4.4.168 for PDF parsing (unpkg CDN)
+- mammoth v1.11.0 for DOCX parsing (esm.run CDN)
 
 **Storage**: IndexedDB locally, SQLite on server, synced via /api/sync
 
