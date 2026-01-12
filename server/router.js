@@ -3,6 +3,7 @@ import { parseJson } from './middleware/json.js';
 import { authRoutes } from './routes/auth.js';
 import { userRoutes } from './routes/users.js';
 import { chatRoutes } from './routes/chats.js';
+import { documentRoutes } from './routes/documents.js';
 import { syncRoutes } from './routes/sync.js';
 
 /**
@@ -71,6 +72,13 @@ export async function handleApiRequest(req, res) {
         { method: 'DELETE', pattern: '/api/chats/:id', handler: chatRoutes.delete },
         { method: 'GET', pattern: '/api/chats/:id/messages', handler: chatRoutes.getMessages },
         { method: 'POST', pattern: '/api/chats/:id/messages', handler: chatRoutes.createMessage },
+
+        // Document routes
+        { method: 'GET', pattern: '/api/documents', handler: documentRoutes.list },
+        { method: 'POST', pattern: '/api/documents', handler: documentRoutes.create },
+        { method: 'GET', pattern: '/api/documents/:id', handler: documentRoutes.get },
+        { method: 'PATCH', pattern: '/api/documents/:id', handler: documentRoutes.update },
+        { method: 'DELETE', pattern: '/api/documents/:id', handler: documentRoutes.delete },
 
         // Sync routes
         { method: 'POST', pattern: '/api/sync/pull', handler: syncRoutes.pull },

@@ -157,7 +157,7 @@ class SyncService {
     async push() {
         const pending = await db.getPendingSyncRecords();
 
-        if (pending.chats.length === 0 && pending.messages.length === 0) {
+        if (pending.chats.length === 0 && pending.messages.length === 0 && pending.documents.length === 0) {
             return 0;
         }
 
@@ -180,6 +180,16 @@ class SyncService {
             deletedAt: m.deletedAt
         }));
 
+        const documents = pending.documents.map(d => ({
+            id: d.id,
+            name: d.name,
+            type: d.type,
+            content: d.content,
+            createdAt: d.createdAt,
+            updatedAt: d.updatedAt,
+            deletedAt: d.deletedAt
+        }));
+
         // For messages, we need to resolve chatLocalId to chatId (ULID)
         for (const msg of messages) {
             if (!msg.chatId) {
@@ -194,7 +204,7 @@ class SyncService {
         // Filter out messages without valid chatId
         const validMessages = messages.filter(m => m.chatId);
 
-        const result = await syncApi.push({ chats, messages: validMessages });
+        const result = await syncApi.push({ chats, messages: validMessages, documents });
 
         // Mark successfully synced items
         const syncedChatIds = result.results.chats
@@ -203,14 +213,18 @@ class SyncService {
         const syncedMessageIds = result.results.messages
             .filter(r => r.synced)
             .map(r => r.id);
+        const syncedDocumentIds = result.results.documents
+            .filter(r => r.synced)
+            .map(r => r.id);
 
         await db.markAsSynced('chats', syncedChatIds);
         await db.markAsSynced('messages', syncedMessageIds);
+        await db.markAsSynced('documents', syncedDocumentIds);
 
         // Update last sync timestamp
         await db.setLastSyncAt(result.syncedAt);
 
-        return syncedChatIds.length + syncedMessageIds.length;
+        return syncedChatIds.length + syncedMessageIds.length + syncedDocumentIds.length;
     }
 
     /**
@@ -232,6 +246,12 @@ class SyncService {
         // Merge messages
         for (const msg of result.messages) {
             const merged = await db.mergeMessage(msg);
+            if (merged) pulled++;
+        }
+
+        // Merge documents
+        for (const doc of result.documents || []) {
+            const merged = await db.mergeDocument(doc);
             if (merged) pulled++;
         }
 

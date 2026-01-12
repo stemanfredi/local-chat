@@ -100,6 +100,12 @@ export const EVENTS = {
     SYNC_COMPLETED: 'sync:completed',
     SYNC_ERROR: 'sync:error',
 
+    // Document events
+    DOCUMENT_UPLOADING: 'document:uploading',
+    DOCUMENT_UPLOADED: 'document:uploaded',
+    DOCUMENT_DELETED: 'document:deleted',
+    DOCUMENT_ERROR: 'document:error',
+
     // Auth events
     AUTH_LOGIN: 'auth:login',
     AUTH_LOGOUT: 'auth:logout',

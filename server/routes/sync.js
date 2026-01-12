@@ -1,4 +1,4 @@
-import { db, chatQueries, messageQueries } from '../db/index.js';
+import { db, chatQueries, messageQueries, documentQueries } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { validateChat } from '../../shared/validation/chat.js';
 import { validateMessage } from '../../shared/validation/message.js';
@@ -30,6 +30,9 @@ export const syncRoutes = {
         // Get messages updated since timestamp
         const messages = messageQueries.findUpdatedSince.all(user.id, sinceTime);
 
+        // Get documents updated since timestamp
+        const documents = documentQueries.findUpdatedSince.all(user.id, sinceTime);
+
         const now = new Date().toISOString();
 
         json(res, 200, {
@@ -49,6 +52,15 @@ export const syncRoutes = {
                 createdAt: m.created_at,
                 updatedAt: m.updated_at,
                 deletedAt: m.deleted_at
+            })),
+            documents: documents.map(d => ({
+                id: d.id,
+                name: d.name,
+                type: d.type,
+                content: d.content,
+                createdAt: d.created_at,
+                updatedAt: d.updated_at,
+                deletedAt: d.deleted_at
             }))
         });
     },
@@ -63,8 +75,8 @@ export const syncRoutes = {
         const user = requireAuth(req, res);
         if (!user) return;
 
-        const { chats = [], messages = [] } = req.body;
-        const results = { chats: [], messages: [] };
+        const { chats = [], messages = [], documents = [] } = req.body;
+        const results = { chats: [], messages: [], documents: [] };
         const errors = [];
 
         // Process chats using transaction
@@ -165,10 +177,60 @@ export const syncRoutes = {
             }
         });
 
+        // Process documents using transaction
+        const processDocuments = db.transaction(() => {
+            for (const doc of documents) {
+                try {
+                    if (!doc.name || !doc.type) {
+                        errors.push({ type: 'document', id: doc.id, error: 'Name and type required' });
+                        continue;
+                    }
+
+                    // Check if document exists
+                    const existing = db.prepare('SELECT * FROM documents WHERE id = ?').get(doc.id);
+
+                    if (existing) {
+                        // Check ownership
+                        if (existing.user_id !== user.id) {
+                            errors.push({ type: 'document', id: doc.id, error: 'Unauthorized' });
+                            continue;
+                        }
+
+                        // Last-write-wins: only update if incoming is newer
+                        if (new Date(doc.updatedAt) > new Date(existing.updated_at)) {
+                            db.prepare(`
+                                UPDATE documents SET name = ?, content = ?, updated_at = ?, deleted_at = ?
+                                WHERE id = ?
+                            `).run(doc.name, doc.content || null, doc.updatedAt, doc.deletedAt || null, doc.id);
+                        }
+                    } else {
+                        // Insert new document
+                        documentQueries.create.run(
+                            doc.id,
+                            user.id,
+                            doc.name,
+                            doc.type,
+                            doc.content || null,
+                            null, // embedding
+                            doc.createdAt,
+                            doc.updatedAt,
+                            doc.deletedAt || null
+                        );
+                    }
+
+                    results.documents.push({ id: doc.id, synced: true });
+                } catch (err) {
+                    console.error('Sync document error:', err);
+                    errors.push({ type: 'document', id: doc.id, error: err.message });
+                }
+            }
+        });
+
         // Execute transactions
         try {
             processChats();
             processMessages();
+            processDocuments();
         } catch (err) {
             console.error('Sync transaction error:', err);
             return json(res, 500, { error: 'Sync failed', details: err.message });

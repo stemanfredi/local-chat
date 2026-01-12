@@ -542,6 +542,50 @@ class Database {
         await this.promisify(newMsgStore.add(message));
         return true;
     }
+
+    /**
+     * Merge a document from server (last-write-wins)
+     * @param {Object} serverDoc
+     * @returns {Promise<boolean>} True if merged/created
+     */
+    async mergeDocument(serverDoc) {
+        await this.ready;
+        const store = this.getStore('documents', 'readwrite');
+
+        const existing = await this.promisify(store.get(serverDoc.id));
+
+        if (existing) {
+            // Last-write-wins: only update if server is newer
+            if (new Date(serverDoc.updatedAt) > new Date(existing.updatedAt)) {
+                const updated = {
+                    ...existing,
+                    name: serverDoc.name,
+                    content: serverDoc.content,
+                    updatedAt: serverDoc.updatedAt,
+                    deletedAt: serverDoc.deletedAt,
+                    syncStatus: SYNC_STATUS.SYNCED
+                };
+                await this.promisify(store.put(updated));
+                return true;
+            }
+            return false;
+        }
+
+        // Insert new document from server
+        const doc = {
+            id: serverDoc.id,
+            name: serverDoc.name,
+            type: serverDoc.type,
+            content: serverDoc.content,
+            embedding: null,
+            createdAt: serverDoc.createdAt,
+            updatedAt: serverDoc.updatedAt,
+            deletedAt: serverDoc.deletedAt,
+            syncStatus: SYNC_STATUS.SYNCED
+        };
+        await this.promisify(store.add(doc));
+        return true;
+    }
 }
 
 // Singleton instance

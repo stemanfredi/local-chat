@@ -3,25 +3,32 @@ import { events, EVENTS } from '../utils/events.js';
 import { state, saveSetting } from '../state.js';
 import { webllm } from '../services/webllm.js';
 import { syncService } from '../services/sync.js';
+import { documentService } from '../services/documents.js';
 import { authApi } from '../api/auth.js';
 import { usersApi } from '../api/users.js';
 import { SYNC_MODES, SETTINGS_KEYS } from '../../../shared/constants.js';
 
 /**
- * Panel component - shows Settings or Users based on context
+ * Panel component - shows Settings, Users, or Documents based on context
  */
 export class Panel {
     constructor(container) {
         this.container = container;
-        this.mode = 'settings'; // 'settings' or 'users'
+        this.mode = 'settings'; // 'settings', 'users', or 'documents'
         this.models = [];
         this.users = [];
+        this.documents = [];
         this.render();
         this.bindEvents();
     }
 
     render() {
-        const title = this.mode === 'settings' ? 'Settings' : 'Manage Users';
+        const titles = {
+            settings: 'Settings',
+            users: 'Manage Users',
+            documents: 'Documents'
+        };
+        const title = titles[this.mode] || 'Settings';
 
         this.container.innerHTML = `
             <div class="panel-header">
@@ -43,8 +50,10 @@ export class Panel {
 
         if (this.mode === 'settings') {
             this.renderSettings();
-        } else {
+        } else if (this.mode === 'users') {
             this.renderUsers();
+        } else if (this.mode === 'documents') {
+            this.renderDocuments();
         }
     }
 
@@ -354,11 +363,123 @@ export class Panel {
         });
     }
 
+    // ==================== Documents ====================
+
+    async renderDocuments() {
+        this.contentEl.innerHTML = `
+            <div class="panel-section">
+                <div class="panel-option">
+                    <label class="panel-label">Upload Document</label>
+                    <input type="file" class="panel-file-input" id="document-upload"
+                           accept="${documentService.getAcceptString()}" multiple>
+                    <p class="panel-hint">Supported: PDF, DOCX, TXT, MD, JSON, JS, TS, PY, HTML, CSS</p>
+                </div>
+            </div>
+            <div class="panel-section">
+                <div class="panel-section-title">Your Documents</div>
+                <div id="documents-list" class="documents-list">
+                    <div class="panel-loading">Loading documents...</div>
+                </div>
+            </div>
+        `;
+
+        this.bindDocumentEvents();
+        await this.loadDocuments();
+    }
+
+    bindDocumentEvents() {
+        const uploadInput = $('#document-upload', this.contentEl);
+        uploadInput?.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+
+            for (const file of files) {
+                try {
+                    await documentService.uploadDocument(file);
+                } catch (error) {
+                    alert(`Failed to upload ${file.name}: ${error.message}`);
+                }
+            }
+
+            // Clear input and reload list
+            uploadInput.value = '';
+            await this.loadDocuments();
+        });
+    }
+
+    async loadDocuments() {
+        const listEl = $('#documents-list', this.contentEl);
+        if (!listEl) return;
+
+        try {
+            this.documents = await documentService.getDocuments();
+            this.renderDocumentsList();
+        } catch (error) {
+            listEl.innerHTML = `<div class="panel-error-msg">Failed to load documents: ${error.message}</div>`;
+        }
+    }
+
+    renderDocumentsList() {
+        const listEl = $('#documents-list', this.contentEl);
+        if (!listEl) return;
+
+        if (this.documents.length === 0) {
+            listEl.innerHTML = '<div class="panel-empty">No documents yet</div>';
+            return;
+        }
+
+        listEl.innerHTML = this.documents.map(doc => {
+            const icon = this.getDocumentIcon(doc.type);
+            const size = doc.content ? `${Math.round(doc.content.length / 1024)}KB` : '';
+            return `
+                <div class="document-row" data-id="${doc.id}">
+                    <div class="document-row-icon">${icon}</div>
+                    <div class="document-row-info">
+                        <div class="document-row-name">${doc.name}</div>
+                        <div class="document-row-meta">${doc.type.toUpperCase()} ${size ? `· ${size}` : ''}</div>
+                    </div>
+                    <button class="document-row-delete" data-id="${doc.id}" title="Delete">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
+                </div>
+            `;
+        }).join('');
+
+        // Bind delete buttons
+        this.contentEl.querySelectorAll('.document-row-delete').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const docId = e.currentTarget.dataset.id;
+                const doc = this.documents.find(d => d.id === docId);
+                if (confirm(`Delete "${doc.name}"?`)) {
+                    try {
+                        await documentService.deleteDocument(docId);
+                        await this.loadDocuments();
+                    } catch (error) {
+                        alert(`Failed: ${error.message}`);
+                    }
+                }
+            });
+        });
+    }
+
+    getDocumentIcon(type) {
+        const icons = {
+            pdf: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>',
+            docx: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>',
+            text: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg>'
+        };
+        return icons[type] || icons.text;
+    }
+
     // ==================== Panel Control ====================
 
     bindEvents() {
         events.on(EVENTS.SETTINGS_TOGGLE, () => this.toggle('settings'));
         events.on('panel:users', () => this.open('users'));
+        events.on('panel:documents', () => this.open('documents'));
         events.on(EVENTS.AUTH_LOGIN, () => { if (this.mode === 'settings') this.render(); });
         events.on(EVENTS.AUTH_LOGOUT, () => { if (this.mode === 'settings') this.render(); });
         events.on(EVENTS.SYNC_STARTED, () => { if (this.mode === 'settings') this.updateSyncStatus(); });

@@ -20,7 +20,8 @@ Local-first AI chat application using WebLLM for browser-based inference, with o
 │  - Sidebar        │  - WebLLM          │  - IndexedDB       │
 │  - ChatView       │  - Auth API        │    (chats,         │
 │  - Panel          │  - Users API       │     messages,      │
-│                   │  - Sync            │     settings)      │
+│                   │  - Sync            │     documents,     │
+│                   │  - Documents       │     settings)      │
 └─────────────────────────────────────────────────────────────┘
                               │ (optional sync)
                               ▼
@@ -31,7 +32,8 @@ Local-first AI chat application using WebLLM for browser-based inference, with o
 │  - /api/auth      │  - Auth (JWT)      │  - SQLite          │
 │  - /api/users     │                    │    (users,         │
 │  - /api/chats     │                    │     chats,         │
-│  - /api/sync      │                    │     messages)      │
+│  - /api/documents │                    │     messages,      │
+│  - /api/sync      │                    │     documents)     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -52,7 +54,7 @@ local-chat/
 │   ├── index.js           # HTTP server (static + API)
 │   ├── router.js          # API route dispatcher
 │   ├── middleware/        # cors, json, auth
-│   ├── routes/            # auth, users, chats, sync
+│   ├── routes/            # auth, users, chats, documents, sync
 │   ├── db/                # SQLite schema + queries
 │   └── services/          # auth (JWT, bcrypt)
 │
@@ -67,7 +69,7 @@ local-chat/
 │       ├── state.js       # Global state
 │       ├── db/            # IndexedDB wrapper
 │       ├── api/           # client, auth, users, sync
-│       ├── services/      # webllm, sync
+│       ├── services/      # webllm, sync, documents
 │       ├── components/    # sidebar, chat-view, panel
 │       └── utils/         # dom, events
 │
@@ -128,7 +130,7 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 **Sidebar**
 - Chat list with active state
 - User menu button (bottom) showing avatar + name + status
-- User menu dropdown: Settings, Manage Users (admin), Sign Out/Sign In
+- User menu dropdown: Settings, Documents, Manage Users (admin), Sign Out/Sign In
 
 **ChatView**
 - Header with menu toggle, title, model status
@@ -136,9 +138,10 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 - Input with send button
 
 **Panel** (slides from right)
-- Mode: 'settings' or 'users' (controlled by dropdown selection)
+- Mode: 'settings', 'users', or 'documents' (controlled by dropdown selection)
 - Settings: Account/login form (guest only), Model, Sync, About
 - Users: User list with admin toggle and delete (admin only)
+- Documents: Upload and manage documents for RAG
 
 ### Model Loading
 
@@ -147,6 +150,16 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 - Per-browser storage, but user-specific if logged in
 - Setting key: `lastLoadedModel` (guest) or `lastLoadedModel:<userId>` (logged in)
 - On login/logout: auto-load that user/guest's last model
+
+### Documents
+
+**Supported formats**: PDF, DOCX, TXT, MD, JSON, JS, TS, PY, HTML, CSS
+
+**Libraries** (loaded from CDN on demand):
+- pdf.js v5.4.530 for PDF parsing
+- mammoth v1.11.0 for DOCX parsing
+
+**Storage**: IndexedDB locally, SQLite on server, synced via /api/sync
 
 ### API Endpoints
 
@@ -165,6 +178,11 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 | PATCH | /api/chats/:id | Yes | Update chat |
 | DELETE | /api/chats/:id | Yes | Soft delete chat |
 | POST | /api/chats/:id/messages | Yes | Create message |
+| GET | /api/documents | Yes | List documents |
+| POST | /api/documents | Yes | Create document |
+| GET | /api/documents/:id | Yes | Get document with content |
+| PATCH | /api/documents/:id | Yes | Update document |
+| DELETE | /api/documents/:id | Yes | Soft delete document |
 | POST | /api/sync/pull | Yes | Get changes since timestamp |
 | POST | /api/sync/push | Yes | Push local changes |
 
@@ -196,11 +214,10 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 
 ### Current
 
-- [ ] Phase 4: Document library + parsing (pdf.js, mammoth)
+- [ ] Phase 5: RAG: embedding + retrieval in chat
 
 ### Backlog
 
-- [ ] Phase 5: RAG: embedding + retrieval in chat
 - [ ] Phase 6: PWA manifest + service worker + UI polish
 
 ### Done
@@ -209,6 +226,7 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 - [x] Phase 1: Basic chat + WebLLM streaming + local IndexedDB
 - [x] Phase 2: Auth + server + admin user panel + simplified UI
 - [x] Phase 3: Server sync + pure offline/offline-first toggle
+- [x] Phase 4: Document library + parsing (pdf.js, mammoth)
 
 ---
 
