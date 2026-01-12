@@ -2,6 +2,10 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { join, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { handleApiRequest } from './router.js';
+
+// Initialize database (runs schema)
+import './db/index.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const CLIENT_DIR = join(__dirname, '..', 'client');
@@ -54,11 +58,9 @@ async function handleRequest(req, res) {
     const url = new URL(req.url, `http://${req.headers.host}`);
     let pathname = url.pathname;
 
-    // API routes (Phase 2+)
+    // API routes
     if (pathname.startsWith('/api/')) {
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'API not implemented yet' }));
-        return;
+        return handleApiRequest(req, res);
     }
 
     // Serve shared directory for ES module imports

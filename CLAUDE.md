@@ -18,9 +18,9 @@ Local-first AI chat application using WebLLM for browser-based inference, with o
 ├─────────────────────────────────────────────────────────────┤
 │  UI Components    │  Services          │  Storage           │
 │  - Sidebar        │  - WebLLM          │  - IndexedDB       │
-│  - Chat View      │  - Sync            │    (chats,         │
-│  - Settings       │  - RAG             │     messages,      │
-│  - Documents      │  - Documents       │     documents)     │
+│  - ChatView       │  - Auth API        │    (chats,         │
+│  - Panel          │  - Users API       │     messages,      │
+│                   │                    │     settings)      │
 └─────────────────────────────────────────────────────────────┘
                               │ (optional sync)
                               ▼
@@ -29,9 +29,9 @@ Local-first AI chat application using WebLLM for browser-based inference, with o
 ├─────────────────────────────────────────────────────────────┤
 │  Routes           │  Services          │  Storage           │
 │  - /api/auth      │  - Auth (JWT)      │  - SQLite          │
-│  - /api/chats     │  - Sync            │    (users,         │
-│  - /api/sync      │                    │     chats,         │
-│  - /api/documents │                    │     messages)      │
+│  - /api/users     │  - Sync            │    (users,         │
+│  - /api/chats     │                    │     chats,         │
+│                   │                    │     messages)      │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -48,21 +48,28 @@ local-chat/
 │   ├── constants.js
 │   └── ulid.js
 │
-├── server/                # Node.js backend
-│   ├── index.js           # HTTP server entry
-│   ├── router.js
-│   ├── middleware/
-│   ├── routes/
-│   ├── db/
-│   └── services/
+├── server/
+│   ├── index.js           # HTTP server (static + API)
+│   ├── router.js          # API route dispatcher
+│   ├── middleware/        # cors, json, auth
+│   ├── routes/            # auth, users, chats
+│   ├── db/                # SQLite schema + queries
+│   └── services/          # auth (JWT, bcrypt)
 │
-├── client/                # Vanilla JS frontend
+├── client/
 │   ├── index.html
-│   ├── manifest.json      # PWA
-│   ├── sw.js              # Service worker
 │   ├── css/
-│   ├── js/
-│   └── assets/
+│   │   ├── main.css
+│   │   ├── variables.css
+│   │   └── components/panel.css
+│   └── js/
+│       ├── app.js         # Entry point
+│       ├── state.js       # Global state
+│       ├── db/            # IndexedDB wrapper
+│       ├── api/           # client, auth, users
+│       ├── services/      # webllm
+│       ├── components/    # sidebar, chat-view, panel
+│       └── utils/         # dom, events
 │
 └── data/                  # Runtime data (gitignored)
 ```
@@ -101,7 +108,6 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 | @mlc-ai/web-llm | 0.2.80 |
 | pdfjs-dist | 5.4.530 |
 | mammoth | 1.11.0 |
-| ulid | 3.0.2 |
 
 ### Entities
 
@@ -109,48 +115,52 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 - id (ULID), username, passwordHash, isAdmin, createdAt, updatedAt
 
 **Chat**
-- id (ULID - visible), localId (auto-increment), userId, title, createdAt, updatedAt, deletedAt
+- id (ULID - visible), localId (auto-increment), title, createdAt, updatedAt, deletedAt, syncStatus
 
 **Message**
-- id (ULID), chatId, role (user|assistant|system), content, createdAt, updatedAt, deletedAt
+- id (ULID), chatLocalId, role (user|assistant|system), content, createdAt, updatedAt, deletedAt, syncStatus
 
-**Document**
-- id (ULID), userId, name, type, content, embedding, createdAt, updatedAt, deletedAt
+**Document** (Phase 4)
+- id (ULID), name, type, content, embedding, createdAt, updatedAt, deletedAt, syncStatus
 
-### Sync Protocol
-- Every record has `updatedAt`
-- Conflict resolution: last-write-wins (most recent `updatedAt`)
-- `syncStatus`: local | synced | pending
-- Chat shareable only if exists on server
+### UI Components
 
-### User Settings
-- Mode: pure-offline | offline-first
-- Inference model selection
-- Embedding model selection
-- Refresh model list from WebLLM
+**Sidebar**
+- Chat list with active state
+- User menu button (bottom) showing avatar + name + status
+- User menu dropdown: Settings, Manage Users (admin), Sign Out/Sign In
 
-### UI Design
-- Colors: grayscale (#1a1a1a, #242424, #2d2d2d)
-- Text: #e5e5e5, #a3a3a3
-- Accent: #64748b (slate)
-- Layout: hamburger sidebar (280px), chat max-width 768px
-- Desktop-first, responsive
-- PWA enabled
+**ChatView**
+- Header with menu toggle, title, model status
+- Message list with streaming support
+- Input with send button
+
+**Panel** (slides from right)
+- Mode: 'settings' or 'users' (controlled by dropdown selection)
+- Settings: Account/login form (guest only), Model, Sync, About
+- Users: User list with admin toggle and delete (admin only)
 
 ### API Endpoints
-
-See [docs/specs/api.md](docs/specs/api.md) when created.
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | POST | /api/auth/register | No | Register (first user = admin) |
 | POST | /api/auth/login | No | Login, returns JWT |
+| POST | /api/auth/refresh | Yes | Refresh token |
 | GET | /api/auth/me | Yes | Current user |
+| GET | /api/users | Admin | List users |
+| PATCH | /api/users/:id | Admin | Update user |
+| DELETE | /api/users/:id | Admin | Delete user |
 | GET | /api/chats | Yes | List chats |
 | POST | /api/chats | Yes | Create chat |
 | GET | /api/chats/:id | Yes | Get chat + messages |
-| POST | /api/sync/pull | Yes | Pull changes since timestamp |
-| POST | /api/sync/push | Yes | Push local changes |
+| PATCH | /api/chats/:id | Yes | Update chat |
+| DELETE | /api/chats/:id | Yes | Soft delete chat |
+| POST | /api/chats/:id/messages | Yes | Create message |
+
+### Validation Rules
+- Username: 3-30 chars, alphanumeric + underscore
+- Password: 8-100 chars
 
 ---
 
@@ -158,11 +168,10 @@ See [docs/specs/api.md](docs/specs/api.md) when created.
 
 ### Current
 
-- [ ] Phase 2: Auth + auto-registration + admin user panel
+- [ ] Phase 3: Server sync + pure offline/offline-first toggle
 
 ### Backlog
 
-- [ ] Phase 3: Server sync + pure offline/offline-first toggle
 - [ ] Phase 4: Document library + parsing (pdf.js, mammoth)
 - [ ] Phase 5: RAG: embedding + retrieval in chat
 - [ ] Phase 6: PWA manifest + service worker + UI polish
@@ -171,6 +180,7 @@ See [docs/specs/api.md](docs/specs/api.md) when created.
 
 - [x] Project design and specification
 - [x] Phase 1: Basic chat + WebLLM streaming + local IndexedDB
+- [x] Phase 2: Auth + server + admin user panel + simplified UI
 
 ---
 
@@ -180,8 +190,3 @@ Extract a section to `docs/specs/[name].md` when:
 - Section exceeds ~100 lines
 - Multiple files need to reference it
 - It changes independently of other sections
-
-After extracting, replace section content with:
-```
-See [docs/specs/name.md](docs/specs/name.md)
-```

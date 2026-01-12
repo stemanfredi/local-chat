@@ -4,7 +4,7 @@ import { state, loadState } from './state.js';
 import { webllm } from './services/webllm.js';
 import { Sidebar } from './components/sidebar.js';
 import { ChatView } from './components/chat-view.js';
-import { Settings } from './components/settings.js';
+import { Panel } from './components/panel.js';
 
 /**
  * Main application
@@ -13,7 +13,7 @@ class App {
     constructor() {
         this.sidebar = null;
         this.chatView = null;
-        this.settings = null;
+        this.panel = null;
     }
 
     async init() {
@@ -23,7 +23,7 @@ class App {
         // Initialize components
         this.sidebar = new Sidebar($('#sidebar'));
         this.chatView = new ChatView($('#main'));
-        this.settings = new Settings($('#settings-panel'));
+        this.panel = new Panel($('#panel'));
 
         // Bind global events
         this.bindEvents();
@@ -51,6 +51,15 @@ class App {
             this.showError(`Failed to load model: ${error}`);
         });
 
+        // Auth events
+        events.on(EVENTS.AUTH_LOGIN, () => {
+            console.log('User logged in:', state.user?.username);
+        });
+
+        events.on(EVENTS.AUTH_LOGOUT, () => {
+            console.log('User logged out');
+        });
+
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             // Cmd/Ctrl + N = New chat
@@ -65,21 +74,11 @@ class App {
                 events.emit(EVENTS.SETTINGS_TOGGLE);
             }
 
-            // Escape = Close settings
+            // Escape = Close panel
             if (e.key === 'Escape') {
-                this.settings.close();
+                this.panel.close();
             }
         });
-    }
-
-    async loadModelWithOverlay(modelId) {
-        this.showModelLoading(0, 'Initializing...');
-        try {
-            await webllm.loadModel(modelId);
-        } catch (error) {
-            console.error('Failed to load model:', error);
-            // Don't show error on initial load - user can pick a different model
-        }
     }
 
     showModelLoading(progress, text) {
@@ -112,7 +111,6 @@ class App {
     }
 
     showError(message) {
-        // Simple alert for now - could be improved with a toast system
         alert(message);
     }
 }
