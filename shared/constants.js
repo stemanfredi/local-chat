@@ -26,11 +26,18 @@ export const SYNC_MODES = {
     OFFLINE_FIRST: 'offline-first'
 };
 
+// Theme modes
+export const THEMES = {
+    LIGHT: 'light',
+    DARK: 'dark'
+};
+
 // Settings keys
 export const SETTINGS_KEYS = {
     SYNC_MODE: 'syncMode',
     INFERENCE_MODEL: 'inferenceModel',
     EMBEDDING_MODEL: 'embeddingModel',
     TOKEN: 'token',
-    USER: 'user'
+    USER: 'user',
+    THEME: 'theme'
 };

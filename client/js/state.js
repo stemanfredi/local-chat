@@ -1,5 +1,5 @@
 import { events, EVENTS } from './utils/events.js';
-import { SYNC_MODES, SETTINGS_KEYS, DEFAULT_INFERENCE_MODEL } from '../../shared/constants.js';
+import { SYNC_MODES, THEMES, SETTINGS_KEYS, DEFAULT_INFERENCE_MODEL } from '../../shared/constants.js';
 import { db } from './db/index.js';
 
 /**
@@ -33,6 +33,7 @@ const initialState = {
     syncMode: SYNC_MODES.PURE_OFFLINE,
     inferenceModel: DEFAULT_INFERENCE_MODEL,
     embeddingModel: null,
+    theme: THEMES.LIGHT,
 
     // Network
     isOnline: navigator.onLine,
@@ -80,6 +81,9 @@ export async function loadState() {
 
     const embeddingModel = await db.getSetting(SETTINGS_KEYS.EMBEDDING_MODEL);
     if (embeddingModel) state.embeddingModel = embeddingModel;
+
+    const theme = await db.getSetting(SETTINGS_KEYS.THEME);
+    if (theme) state.theme = theme;
 
     // Load auth
     const token = await db.getSetting(SETTINGS_KEYS.TOKEN);

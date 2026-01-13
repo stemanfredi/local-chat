@@ -4,8 +4,8 @@
     "description": "Local-first AI chat application with browser-based inference",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#1a1a1a",
-    "theme_color": "#1a1a1a",
+    "background_color": "#ffffff",
+    "theme_color": "#ffffff",
     "icons": [
         {
             "src": "assets/icons/icon-192.png",

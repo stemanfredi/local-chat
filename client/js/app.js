@@ -7,6 +7,7 @@ import { rag } from './services/rag.js';
 import { Sidebar } from './components/sidebar.js';
 import { ChatView } from './components/chat-view.js';
 import { Panel } from './components/panel.js';
+import { THEMES } from '../../shared/constants.js';
 
 /**
  * Main application
@@ -21,6 +22,9 @@ class App {
     async init() {
         // Load persisted state
         await loadState();
+
+        // Apply saved theme
+        this.applyTheme(state.theme);
 
         // Initialize components
         this.sidebar = new Sidebar($('#sidebar'));
@@ -41,6 +45,18 @@ class App {
         this.registerServiceWorker();
 
         console.log('Local Chat initialized');
+    }
+
+    /**
+     * Apply theme to document
+     * @param {string} theme - 'light' or 'dark'
+     */
+    applyTheme(theme) {
+        if (theme === THEMES.DARK) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+        }
     }
 
     /**
@@ -97,6 +113,11 @@ class App {
         // Sidebar toggle
         events.on(EVENTS.SIDEBAR_TOGGLE, () => {
             this.sidebar.toggle();
+        });
+
+        // Theme changes
+        events.on('state:theme', ({ value }) => {
+            this.applyTheme(value);
         });
 
         // Model loading overlay

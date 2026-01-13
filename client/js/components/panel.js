@@ -7,7 +7,7 @@ import { documentService } from '../services/documents.js';
 import { rag } from '../services/rag.js';
 import { authApi } from '../api/auth.js';
 import { usersApi } from '../api/users.js';
-import { SYNC_MODES, SETTINGS_KEYS } from '../../../shared/constants.js';
+import { SYNC_MODES, THEMES, SETTINGS_KEYS } from '../../../shared/constants.js';
 
 /**
  * Panel component - shows Settings, Users, or Documents based on context
@@ -85,6 +85,17 @@ export class Panel {
             ` : ''}
 
             <div class="panel-section">
+                <div class="panel-section-title">Appearance</div>
+                <div class="panel-option">
+                    <label class="panel-label" for="theme-select">Theme</label>
+                    <select class="panel-select" id="theme-select">
+                        <option value="${THEMES.LIGHT}">Light</option>
+                        <option value="${THEMES.DARK}">Dark</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="panel-section">
                 <div class="panel-section-title">Chat Model</div>
                 <div class="panel-option">
                     <label class="panel-label" for="inference-model">Inference Model</label>
@@ -149,7 +160,12 @@ export class Panel {
         this.loadEmbedModels();
         this.bindSettingsEvents();
 
-        // Set current sync mode
+        // Set current values
+        const themeSelect = $('#theme-select', this.contentEl);
+        if (themeSelect) {
+            themeSelect.value = state.theme;
+        }
+
         const syncModeSelect = $('#sync-mode', this.contentEl);
         if (syncModeSelect) {
             syncModeSelect.value = state.syncMode;
@@ -199,6 +215,12 @@ export class Panel {
                 if (e.key === 'Enter') handleAuth(false);
             });
         }
+
+        // Theme control
+        const themeSelect = $('#theme-select', this.contentEl);
+        themeSelect?.addEventListener('change', async () => {
+            await saveSetting(SETTINGS_KEYS.THEME, themeSelect.value);
+        });
 
         // Model controls
         const loadModelBtn = $('#load-model-btn', this.contentEl);

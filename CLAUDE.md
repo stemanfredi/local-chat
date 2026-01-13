@@ -146,7 +146,7 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 
 **Panel** (slides from right)
 - Mode: 'settings', 'users', or 'documents' (controlled by dropdown selection)
-- Settings: Account/login form (guest only), Chat Model, Embedding Model (RAG), Sync, About
+- Settings: Account/login form (guest only), Appearance (theme), Chat Model, Embedding Model (RAG), Sync, About
 - Users: User list with admin toggle and delete (admin only)
 - Documents: Upload, manage, and embed documents for RAG (shows embedding status)
 
@@ -273,6 +273,29 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 - Minimum 44px for all interactive elements
 - 16px font-size on inputs (prevents iOS zoom)
 
+### Theme
+
+**Modes**: Light (default), Dark
+
+**Implementation**:
+- Light mode colors in `:root` (default, no data attribute)
+- Dark mode colors in `[data-theme="dark"]` selector
+- Theme applied via `data-theme` attribute on `<html>` element
+- Persisted in IndexedDB via `theme` setting key
+- Toggle in Settings panel under "Appearance" section
+
+**Colors** (light mode):
+- Background: `#ffffff`, `#f5f5f5`, `#ebebeb`
+- Text: `#1a1a1a`, `#525252`, `#737373`
+- Border: `#d4d4d4`
+- Accent: `#475569` (slate)
+
+**Colors** (dark mode):
+- Background: `#1a1a1a`, `#242424`, `#2d2d2d`
+- Text: `#e5e5e5`, `#a3a3a3`, `#737373`
+- Border: `#404040`
+- Accent: `#64748b` (slate)
+
 ---
 
 ## Tasks
@@ -286,4 +309,5 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 - [x] Phase 4: Document library + parsing (pdf.js, mammoth)
 - [x] Phase 5: RAG with embedding + retrieval in chat
 - [x] Phase 6: PWA manifest + service worker + install prompt
+- [x] Light/dark theme toggle (defaults to light)
 
