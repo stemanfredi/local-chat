@@ -142,6 +142,7 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 **ChatView**
 - Header with menu toggle, title, model status
 - Message list with streaming support
+- Markdown rendering: **bold**, *italic*, `code`, ```code blocks```, tables
 - Input with send button and @mention autocomplete for documents
 
 **Panel** (slides from right)
@@ -325,4 +326,7 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 **Sprint 3 - Event Constants:**
 - [x] Add `PANEL_USERS`, `PANEL_DOCUMENTS` to `client/js/utils/events.js`
 - [x] Update sidebar.js and panel.js to use constants
+
+**Additional:**
+- [x] Add markdown table rendering support to `parseMarkdown()`
 

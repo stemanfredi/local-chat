@@ -75,8 +75,49 @@ export function escapeHtml(text) {
 }
 
 /**
+ * Parse a markdown table into HTML
+ * @param {string} tableText - Lines of table markdown
+ * @returns {string} HTML table
+ */
+function parseTable(tableText) {
+    const lines = tableText.trim().split('\n').filter(l => l.trim());
+    if (lines.length < 2) return tableText;
+
+    const parseRow = (line) => {
+        return line.split('|')
+            .map(cell => cell.trim())
+            .filter((cell, i, arr) => i > 0 && i < arr.length - 1); // Remove empty first/last from | borders
+    };
+
+    const headerCells = parseRow(lines[0]);
+
+    // Check if second line is separator (| --- | --- |)
+    const isSeparator = /^\|?\s*[-:]+\s*\|/.test(lines[1]);
+    if (!isSeparator) return tableText;
+
+    let html = '<table><thead><tr>';
+    for (const cell of headerCells) {
+        html += `<th>${cell}</th>`;
+    }
+    html += '</tr></thead><tbody>';
+
+    // Parse body rows (skip header and separator)
+    for (let i = 2; i < lines.length; i++) {
+        const cells = parseRow(lines[i]);
+        html += '<tr>';
+        for (const cell of cells) {
+            html += `<td>${cell}</td>`;
+        }
+        html += '</tr>';
+    }
+
+    html += '</tbody></table>';
+    return html;
+}
+
+/**
  * Parse simple markdown to HTML
- * Supports: **bold**, *italic*, `code`, ```code blocks```, links
+ * Supports: **bold**, *italic*, `code`, ```code blocks```, tables
  * @param {string} text
  * @returns {string}
  */
@@ -87,6 +128,12 @@ export function parseMarkdown(text) {
     // Code blocks (must be first to prevent other parsing inside)
     html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
 
+    // Tables (before other inline parsing)
+    // Match consecutive lines starting with |
+    html = html.replace(/((?:^\|.+\|$\n?)+)/gm, (match) => {
+        return parseTable(match);
+    });
+
     // Inline code
     html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
 
@@ -96,10 +143,10 @@ export function parseMarkdown(text) {
     // Italic
     html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
-    // Line breaks (but not inside pre/code)
+    // Line breaks (but not inside pre/code or tables)
     // Simple approach: convert double newlines to paragraphs
     html = html.split(/\n\n+/).map(p => {
-        if (p.startsWith('<pre>')) return p;
+        if (p.startsWith('<pre>') || p.startsWith('<table>')) return p;
         return `<p>${p.replace(/\n/g, '<br>')}</p>`;
     }).join('');
 
