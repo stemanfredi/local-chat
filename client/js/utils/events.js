@@ -123,5 +123,7 @@ export const EVENTS = {
 
     // UI events
     SIDEBAR_TOGGLE: 'sidebar:toggle',
-    SETTINGS_TOGGLE: 'settings:toggle'
+    SETTINGS_TOGGLE: 'settings:toggle',
+    PANEL_USERS: 'panel:users',
+    PANEL_DOCUMENTS: 'panel:documents'
 };

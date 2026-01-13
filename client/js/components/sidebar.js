@@ -186,14 +186,14 @@ export class Sidebar {
         if (documentsBtn) {
             documentsBtn.addEventListener('click', () => {
                 this.closeMenu();
-                events.emit('panel:documents');
+                events.emit(EVENTS.PANEL_DOCUMENTS);
             });
         }
 
         if (usersBtn) {
             usersBtn.addEventListener('click', () => {
                 this.closeMenu();
-                events.emit('panel:users');
+                events.emit(EVENTS.PANEL_USERS);
             });
         }
 

@@ -618,8 +618,8 @@ export class Panel {
 
     bindEvents() {
         events.on(EVENTS.SETTINGS_TOGGLE, () => this.toggle('settings'));
-        events.on('panel:users', () => this.open('users'));
-        events.on('panel:documents', () => this.open('documents'));
+        events.on(EVENTS.PANEL_USERS, () => this.open('users'));
+        events.on(EVENTS.PANEL_DOCUMENTS, () => this.open('documents'));
         events.on(EVENTS.AUTH_LOGIN, () => { if (this.mode === 'settings') this.render(); });
         events.on(EVENTS.AUTH_LOGOUT, () => { if (this.mode === 'settings') this.render(); });
         events.on(EVENTS.SYNC_STARTED, () => { if (this.mode === 'settings') this.updateSyncStatus(); });

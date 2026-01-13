@@ -323,6 +323,6 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 - [x] Remove debug console.logs from `server/routes/auth.js`
 
 **Sprint 3 - Event Constants:**
-- [ ] Add `PANEL_USERS`, `PANEL_DOCUMENTS` to `client/js/utils/events.js`
-- [ ] Update sidebar.js and panel.js to use constants
+- [x] Add `PANEL_USERS`, `PANEL_DOCUMENTS` to `client/js/utils/events.js`
+- [x] Update sidebar.js and panel.js to use constants
 
