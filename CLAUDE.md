@@ -227,6 +227,19 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 - Username: 3-30 chars, alphanumeric + underscore
 - Password: 8-100 chars
 
+### Auth State
+
+**On Logout**:
+- Clears token and user from state and IndexedDB
+- Clears chat state (chats, currentChat, messages) for privacy
+- UI components re-render to show empty/guest state
+- Guest starts with clean slate, no access to previous user's data
+
+**On Login**:
+- Stores token and user in state and IndexedDB
+- Sidebar and chat view re-render
+- If sync enabled, pulls user's chats from server
+
 ### Sync
 
 **Modes**
@@ -345,4 +358,5 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 - [x] Refresh button updates both chat and embedding model lists
 - [x] Chat message avatars show user's initial (or 'G' for guest)
 - [x] Model cache indicator: "(cached)" suffix for already-downloaded models
+- [x] Clear chat state on logout (privacy: guest can't see previous user's chats)
 

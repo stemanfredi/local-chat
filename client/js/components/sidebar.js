@@ -265,8 +265,14 @@ export class Sidebar {
         events.on(EVENTS.CHAT_SELECTED, () => this.renderChatList());
         events.on(EVENTS.MESSAGE_CREATED, () => this.renderChatList());
         events.on(EVENTS.CHATS_UPDATED, () => this.renderChatList());
-        events.on(EVENTS.AUTH_LOGIN, () => this.renderUserMenu());
-        events.on(EVENTS.AUTH_LOGOUT, () => this.renderUserMenu());
+        events.on(EVENTS.AUTH_LOGIN, () => {
+            this.renderUserMenu();
+            this.renderChatList();
+        });
+        events.on(EVENTS.AUTH_LOGOUT, () => {
+            this.renderUserMenu();
+            this.renderChatList();
+        });
     }
 
     async onChatClick(localId) {

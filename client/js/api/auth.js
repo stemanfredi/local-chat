@@ -69,6 +69,11 @@ export const authApi = {
         state.user = null;
         state.token = null;
 
+        // Clear chat state - guest shouldn't see previous user's chats
+        state.chats = [];
+        state.currentChat = null;
+        state.messages = [];
+
         events.emit(EVENTS.AUTH_LOGOUT);
     },
 

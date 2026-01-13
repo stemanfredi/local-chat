@@ -263,6 +263,11 @@ export class ChatView {
         events.on(EVENTS.MODEL_ERROR, () => {
             this.updateModelStatus();
         });
+
+        events.on(EVENTS.AUTH_LOGOUT, () => {
+            this.renderMessages();
+            this.updateHeader();
+        });
     }
 
     updateHeader() {
