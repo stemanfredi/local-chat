@@ -311,3 +311,18 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 - [x] Phase 6: PWA manifest + service worker + install prompt
 - [x] Light/dark theme toggle (defaults to light)
 
+### Health Audit (Jan 2026)
+
+**Sprint 1 - Dead Code Removal:**
+- [x] Remove unused DOM utils: `$$`, `toggleClass`, `show`, `hide`, `debounce` from `client/js/utils/dom.js`
+
+**Sprint 2 - Server Consolidation:**
+- [ ] Extract `json()` helper to `server/utils/response.js`
+- [ ] Update all route files to use shared helper
+- [ ] Extract `serializeUser()` to `server/services/auth.js`
+- [ ] Remove debug console.logs from `server/routes/auth.js`
+
+**Sprint 3 - Event Constants:**
+- [ ] Add `PANEL_USERS`, `PANEL_DOCUMENTS` to `client/js/utils/events.js`
+- [ ] Update sidebar.js and panel.js to use constants
+

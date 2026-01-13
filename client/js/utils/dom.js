@@ -13,16 +13,6 @@ export function $(selector, parent = document) {
 }
 
 /**
- * Query selector all shorthand
- * @param {string} selector - CSS selector
- * @param {Element} parent - Parent element (defaults to document)
- * @returns {NodeList}
- */
-export function $$(selector, parent = document) {
-    return parent.querySelectorAll(selector);
-}
-
-/**
  * Create an element with attributes and children
  * @param {string} tag - HTML tag name
  * @param {Object} attrs - Attributes object
@@ -74,32 +64,6 @@ export function clearChildren(element) {
 }
 
 /**
- * Toggle a class on an element
- * @param {Element} element
- * @param {string} className
- * @param {boolean} force - Optional force add/remove
- */
-export function toggleClass(element, className, force) {
-    element.classList.toggle(className, force);
-}
-
-/**
- * Show an element
- * @param {Element} element
- */
-export function show(element) {
-    element.classList.remove('hidden');
-}
-
-/**
- * Hide an element
- * @param {Element} element
- */
-export function hide(element) {
-    element.classList.add('hidden');
-}
-
-/**
  * Escape HTML to prevent XSS
  * @param {string} text
  * @returns {string}
@@ -140,20 +104,6 @@ export function parseMarkdown(text) {
     }).join('');
 
     return html;
-}
-
-/**
- * Debounce a function
- * @param {Function} fn
- * @param {number} delay
- * @returns {Function}
- */
-export function debounce(fn, delay) {
-    let timeoutId;
-    return function (...args) {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => fn.apply(this, args), delay);
-    };
 }
 
 /**
