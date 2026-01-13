@@ -135,13 +135,14 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 ### UI Components
 
 **Sidebar**
-- Chat list with active state
+- Chat list with active state and delete button (shows on hover)
 - User menu button (bottom) showing avatar + name + status
 - User menu dropdown: Settings, Documents, Manage Users (admin), Sign Out/Sign In
 
 **ChatView**
 - Header with menu toggle, title, model status
 - Message list with streaming support
+- User messages right-aligned (like Claude.ai), assistant messages left-aligned
 - Message avatars: user's initial (or 'G' for guest), 'AI' for assistant
 - Markdown rendering: **bold**, *italic*, `code`, ```code blocks```, tables
 - Input with send button and @mention autocomplete for documents
@@ -227,18 +228,33 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 - Username: 3-30 chars, alphanumeric + underscore
 - Password: 8-100 chars
 
-### Auth State
+### Data Isolation
 
-**On Logout**:
-- Clears token and user from state and IndexedDB
-- Clears chat state (chats, currentChat, messages) for privacy
-- UI components re-render to show empty/guest state
-- Guest starts with clean slate, no access to previous user's data
+**Principle**: Every user-owned record has `userId`. All queries filter by current user.
 
-**On Login**:
-- Stores token and user in state and IndexedDB
-- Sidebar and chat view re-render
-- If sync enabled, pulls user's chats from server
+**IndexedDB Schema** (client-side):
+- `chats.userId` - null for guest, user ID for logged-in user
+- `documents.userId` - null for guest, user ID for logged-in user
+- `messages` - linked to chats via `chatLocalId` (indirect isolation)
+
+**Server Schema** (SQLite):
+- All tables have `user_id` foreign key
+- All queries filter by authenticated user
+
+**Auth State Flow**:
+
+| Event | Action |
+|-------|--------|
+| Logout | Load guest data (userId=null), clear current state |
+| Login | Load user's data (userId=user.id), sync from server |
+| Page Load | Filter all data by current user ID |
+| Sync Pull | Merge records with current userId |
+
+**Security Guarantees**:
+- Guest cannot see logged-in user's data
+- User A cannot see User B's data (same browser)
+- Server enforces user_id on all endpoints
+- Client filters by userId in all getAllX() calls
 
 ### Sync
 
@@ -359,4 +375,19 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 - [x] Chat message avatars show user's initial (or 'G' for guest)
 - [x] Model cache indicator: "(cached)" suffix for already-downloaded models
 - [x] Clear chat state on logout (privacy: guest can't see previous user's chats)
+
+### Security Audit (Jan 2026)
+
+- [x] Add userId field to documents in IndexedDB
+- [x] Filter getAllDocuments() by userId
+- [x] Filter getAllChats() by userId in sync pull
+- [x] Update documents.js service to pass userId on create/get
+- [x] Update rag.js service to filter by userId (7 call sites)
+- [x] Update mergeChat/mergeDocument to set userId from sync
+- [x] Document data isolation model in CLAUDE.md
+
+### UI Polish (Jan 2026)
+
+- [x] User messages right-aligned in chat (like Claude.ai)
+- [x] Delete button on chat items in sidebar (shows on hover, confirm before delete)
 

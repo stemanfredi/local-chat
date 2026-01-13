@@ -238,8 +238,9 @@ class SyncService {
         let pulled = 0;
 
         // Merge chats
+        const userId = state.user?.id || null;
         for (const chat of result.chats) {
-            const merged = await db.mergeChat(chat);
+            const merged = await db.mergeChat(chat, userId);
             if (merged) pulled++;
         }
 
@@ -251,7 +252,7 @@ class SyncService {
 
         // Merge documents
         for (const doc of result.documents || []) {
-            const merged = await db.mergeDocument(doc);
+            const merged = await db.mergeDocument(doc, userId);
             if (merged) pulled++;
         }
 
@@ -261,7 +262,7 @@ class SyncService {
 
         // Reload chats in state if any were pulled
         if (pulled > 0) {
-            state.chats = await db.getAllChats();
+            state.chats = await db.getAllChats(state.user?.id || null);
             events.emit(EVENTS.CHATS_UPDATED);
         }
 

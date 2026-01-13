@@ -92,8 +92,9 @@ export async function loadState() {
     const user = await db.getSetting(SETTINGS_KEYS.USER);
     if (user) state.user = user;
 
-    // Load chats
-    state.chats = await db.getAllChats();
+    // Load chats for current user only (filtered by userId)
+    const currentUserId = state.user?.id || null;
+    state.chats = await db.getAllChats(currentUserId);
 
     // Load last sync time
     const lastSyncAt = await db.getLastSyncAt();
@@ -188,7 +189,7 @@ export async function selectChat(localId) {
  * @returns {Promise<Object>}
  */
 export async function createChat() {
-    const chat = await db.createChat();
+    const chat = await db.createChat({ userId: state.user?.id || null });
     state.chats = [chat, ...state.chats];
     await selectChat(chat.localId);
     events.emit(EVENTS.CHAT_CREATED, chat);
@@ -196,21 +197,25 @@ export async function createChat() {
 }
 
 /**
- * Delete the current chat
+ * Delete a chat by localId
+ * @param {number} localId
  */
-export async function deleteCurrentChat() {
-    if (!state.currentChat) return;
+export async function deleteChat(localId) {
+    const chat = state.chats.find(c => c.localId === localId);
+    if (!chat) return;
 
-    await db.deleteChat(state.currentChat.localId);
-    state.chats = state.chats.filter(c => c.localId !== state.currentChat.localId);
+    await db.deleteChat(localId);
+    state.chats = state.chats.filter(c => c.localId !== localId);
 
-    events.emit(EVENTS.CHAT_DELETED, state.currentChat);
+    events.emit(EVENTS.CHAT_DELETED, chat);
 
-    // Select next chat or none
-    if (state.chats.length > 0) {
-        await selectChat(state.chats[0].localId);
-    } else {
-        await selectChat(null);
+    // If deleted chat was selected, select next or none
+    if (state.currentChat?.localId === localId) {
+        if (state.chats.length > 0) {
+            await selectChat(state.chats[0].localId);
+        } else {
+            await selectChat(null);
+        }
     }
 }
 

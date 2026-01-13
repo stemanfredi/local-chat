@@ -142,6 +142,7 @@ class DocumentService {
             }
 
             const doc = await db.createDocument({
+                userId: state.user?.id || null,
                 name,
                 type,
                 content
@@ -166,11 +167,11 @@ class DocumentService {
     }
 
     /**
-     * Get all documents
+     * Get all documents for current user
      * @returns {Promise<Object[]>}
      */
     async getDocuments() {
-        return db.getAllDocuments();
+        return db.getAllDocuments(state.user?.id || null);
     }
 
     /**

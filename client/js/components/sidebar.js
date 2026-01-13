@@ -1,6 +1,6 @@
 import { $, el, clearChildren } from '../utils/dom.js';
 import { events, EVENTS } from '../utils/events.js';
-import { state, createChat, selectChat } from '../state.js';
+import { state, createChat, selectChat, deleteChat } from '../state.js';
 import { authApi } from '../api/auth.js';
 
 /**
@@ -90,6 +90,24 @@ export class Sidebar {
                     chat.title || 'New chat'
                 )
             );
+
+            // Add delete button with proper SVG (el() doesn't handle SVG namespace)
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'chat-item-delete';
+            deleteBtn.title = 'Delete';
+            deleteBtn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+            `;
+            deleteBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (confirm(`Delete "${chat.title || 'New chat'}"?`)) {
+                    await deleteChat(chat.localId);
+                }
+            });
+            item.appendChild(deleteBtn);
 
             item.addEventListener('click', () => this.onChatClick(chat.localId));
             this.chatList.appendChild(item);

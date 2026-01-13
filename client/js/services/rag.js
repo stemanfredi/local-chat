@@ -1,4 +1,5 @@
 import { db } from '../db/index.js';
+import { state } from '../state.js';
 import { webllm } from './webllm.js';
 import { events, EVENTS } from '../utils/events.js';
 
@@ -111,7 +112,7 @@ class RAGService {
      * @returns {Promise<Object>} Updated document
      */
     async embedDocument(docId) {
-        const docs = await db.getAllDocuments();
+        const docs = await db.getAllDocuments(state.user?.id || null);
         const doc = docs.find(d => d.id === docId);
 
         if (!doc) {
@@ -149,7 +150,7 @@ class RAGService {
             throw new Error('Embedding model not loaded');
         }
 
-        const docs = await db.getAllDocuments();
+        const docs = await db.getAllDocuments(state.user?.id || null);
         let count = 0;
 
         for (const doc of docs) {
@@ -205,7 +206,7 @@ class RAGService {
         const [queryEmbedding] = await webllm.generateEmbedding(query);
 
         // Get all documents with embeddings
-        const docs = await db.getAllDocuments();
+        const docs = await db.getAllDocuments(state.user?.id || null);
         const allChunks = [];
 
         for (const doc of docs) {
@@ -261,7 +262,7 @@ class RAGService {
      * @returns {Promise<boolean>}
      */
     async hasEmbeddedDocuments() {
-        const docs = await db.getAllDocuments();
+        const docs = await db.getAllDocuments(state.user?.id || null);
         return docs.some(d => d.embedding);
     }
 
@@ -270,7 +271,7 @@ class RAGService {
      * @returns {Promise<{total: number, embedded: number, pending: number}>}
      */
     async getStats() {
-        const docs = await db.getAllDocuments();
+        const docs = await db.getAllDocuments(state.user?.id || null);
         // Only count docs with actual content
         const withContent = docs.filter(d => d.content && typeof d.content === 'string' && d.content.trim().length > 0);
         const embedded = withContent.filter(d => d.embedding).length;
@@ -300,7 +301,7 @@ class RAGService {
     async getDocumentsByName(names) {
         if (names.length === 0) return [];
 
-        const docs = await db.getAllDocuments();
+        const docs = await db.getAllDocuments(state.user?.id || null);
         const results = [];
 
         for (const name of names) {
@@ -361,7 +362,7 @@ class RAGService {
      * @returns {Promise<Object[]>}
      */
     async searchDocuments(query) {
-        const docs = await db.getAllDocuments();
+        const docs = await db.getAllDocuments(state.user?.id || null);
         const queryLower = query.toLowerCase();
 
         return docs

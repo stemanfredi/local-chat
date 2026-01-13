@@ -69,8 +69,8 @@ export const authApi = {
         state.user = null;
         state.token = null;
 
-        // Clear chat state - guest shouldn't see previous user's chats
-        state.chats = [];
+        // Load guest chats (chats with userId = null)
+        state.chats = await db.getAllChats(null);
         state.currentChat = null;
         state.messages = [];
 
@@ -103,6 +103,11 @@ async function saveAuthState(user, token) {
 
     state.user = user;
     state.token = token;
+
+    // Load this user's chats
+    state.chats = await db.getAllChats(user?.id || null);
+    state.currentChat = null;
+    state.messages = [];
 
     events.emit(EVENTS.AUTH_LOGIN, user);
 }

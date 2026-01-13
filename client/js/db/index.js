@@ -133,6 +133,7 @@ class Database {
         const now = new Date().toISOString();
         const chat = {
             id: ulid(),
+            userId: data.userId || null,  // null = guest, otherwise user id
             title: data.title || null,
             createdAt: now,
             updatedAt: now,
@@ -169,15 +170,16 @@ class Database {
     }
 
     /**
-     * Get all chats (not deleted)
+     * Get all chats for a user (not deleted)
+     * @param {string|null} userId - User ID or null for guest
      * @returns {Promise<Object[]>}
      */
-    async getAllChats() {
+    async getAllChats(userId = null) {
         await this.ready;
         const store = this.getStore('chats');
         const all = await this.promisify(store.getAll());
         return all
-            .filter(chat => !chat.deletedAt)
+            .filter(chat => !chat.deletedAt && (chat.userId ?? null) === userId)
             .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
     }
 
@@ -210,6 +212,18 @@ class Database {
      */
     async deleteChat(localId) {
         await this.updateChat(localId, { deletedAt: new Date().toISOString() });
+    }
+
+    /**
+     * Clear all chats and messages (for user switch)
+     */
+    async clearAllChatsAndMessages() {
+        await this.ready;
+        const chatStore = this.getStore('chats', 'readwrite');
+        await this.promisify(chatStore.clear());
+
+        const msgStore = this.getStore('messages', 'readwrite');
+        await this.promisify(msgStore.clear());
     }
 
     // ==================== Messages ====================
@@ -315,6 +329,7 @@ class Database {
         const now = new Date().toISOString();
         const doc = {
             id: ulid(),
+            userId: data.userId || null,  // null = guest, otherwise user id
             name: data.name,
             type: data.type,
             content: data.content || null,
@@ -331,15 +346,16 @@ class Database {
     }
 
     /**
-     * Get all documents
+     * Get all documents for a user (not deleted)
+     * @param {string|null} userId - User ID or null for guest
      * @returns {Promise<Object[]>}
      */
-    async getAllDocuments() {
+    async getAllDocuments(userId = null) {
         await this.ready;
         const store = this.getStore('documents');
         const all = await this.promisify(store.getAll());
         return all
-            .filter(doc => !doc.deletedAt)
+            .filter(doc => !doc.deletedAt && (doc.userId ?? null) === userId)
             .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
     }
 
@@ -450,9 +466,10 @@ class Database {
     /**
      * Merge a chat from server (last-write-wins)
      * @param {Object} serverChat
+     * @param {string} userId - Current user's ID (from authenticated sync)
      * @returns {Promise<boolean>} True if merged/created
      */
-    async mergeChat(serverChat) {
+    async mergeChat(serverChat, userId) {
         await this.ready;
         const store = this.getStore('chats', 'readwrite');
         const index = store.index('id');
@@ -478,6 +495,7 @@ class Database {
         // Insert new chat from server
         const chat = {
             id: serverChat.id,
+            userId,  // Associate with current user
             title: serverChat.title,
             createdAt: serverChat.createdAt,
             updatedAt: serverChat.updatedAt,
@@ -546,9 +564,10 @@ class Database {
     /**
      * Merge a document from server (last-write-wins)
      * @param {Object} serverDoc
+     * @param {string} userId - Current user's ID (from authenticated sync)
      * @returns {Promise<boolean>} True if merged/created
      */
-    async mergeDocument(serverDoc) {
+    async mergeDocument(serverDoc, userId) {
         await this.ready;
         const store = this.getStore('documents', 'readwrite');
 
@@ -574,6 +593,7 @@ class Database {
         // Insert new document from server
         const doc = {
             id: serverDoc.id,
+            userId,  // Associate with current user
             name: serverDoc.name,
             type: serverDoc.type,
             content: serverDoc.content,

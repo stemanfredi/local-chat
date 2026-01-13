@@ -121,7 +121,7 @@ export class ChatView {
     renderMessage(message) {
         const isUser = message.role === MESSAGE_ROLES.USER;
         const userInitial = state.user?.username?.charAt(0).toUpperCase() || 'G';
-        const messageEl = el('div', { className: 'message', dataset: { id: message.id } },
+        const messageEl = el('div', { className: `message ${isUser ? 'user' : ''}`, dataset: { id: message.id } },
             el('div', { className: `message-avatar ${isUser ? 'user' : ''}` },
                 isUser ? userInitial : 'AI'
             ),
