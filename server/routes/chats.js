@@ -3,14 +3,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { validateChat } from '../../shared/validation/chat.js';
 import { validateMessage } from '../../shared/validation/message.js';
 import { ulid } from '../../shared/ulid.js';
-
-/**
- * Send JSON response
- */
-function json(res, status, data) {
-    res.writeHead(status, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(data));
-}
+import { json } from '../utils/response.js';
 
 export const chatRoutes = {
     /**

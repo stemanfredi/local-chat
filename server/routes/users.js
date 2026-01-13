@@ -1,13 +1,6 @@
 import { userQueries } from '../db/index.js';
 import { requireAdmin } from '../middleware/auth.js';
-
-/**
- * Send JSON response
- */
-function json(res, status, data) {
-    res.writeHead(status, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(data));
-}
+import { json } from '../utils/response.js';
 
 export const userRoutes = {
     /**

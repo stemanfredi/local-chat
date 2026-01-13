@@ -317,10 +317,10 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 - [x] Remove unused DOM utils: `$$`, `toggleClass`, `show`, `hide`, `debounce` from `client/js/utils/dom.js`
 
 **Sprint 2 - Server Consolidation:**
-- [ ] Extract `json()` helper to `server/utils/response.js`
-- [ ] Update all route files to use shared helper
-- [ ] Extract `serializeUser()` to `server/services/auth.js`
-- [ ] Remove debug console.logs from `server/routes/auth.js`
+- [x] Extract `json()` helper to `server/utils/response.js`
+- [x] Update all route files to use shared helper
+- [x] Extract `serializeUser()` to `server/services/auth.js`
+- [x] Remove debug console.logs from `server/routes/auth.js`
 
 **Sprint 3 - Event Constants:**
 - [ ] Add `PANEL_USERS`, `PANEL_DOCUMENTS` to `client/js/utils/events.js`

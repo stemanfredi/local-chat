@@ -1,16 +1,9 @@
 import { userQueries } from '../db/index.js';
-import { hashPassword, verifyPassword, generateToken } from '../services/auth.js';
+import { hashPassword, verifyPassword, generateToken, serializeUser } from '../services/auth.js';
 import { requireAuth } from '../middleware/auth.js';
 import { validateUser } from '../../shared/validation/user.js';
 import { ulid } from '../../shared/ulid.js';
-
-/**
- * Send JSON response
- */
-function json(res, status, data) {
-    res.writeHead(status, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(data));
-}
+import { json } from '../utils/response.js';
 
 export const authRoutes = {
     /**
@@ -20,12 +13,9 @@ export const authRoutes = {
     async register(req, res) {
         const { username, password } = req.body;
 
-        console.log('Register attempt:', { username, passwordLength: password?.length });
-
         // Validate input
         const validation = validateUser({ username, password });
         if (!validation.valid) {
-            console.log('Validation failed:', validation.errors);
             return json(res, 400, { errors: validation.errors });
         }
 
@@ -49,15 +39,7 @@ export const authRoutes = {
         const user = userQueries.findById.get(id);
         const token = generateToken(user);
 
-        json(res, 201, {
-            user: {
-                id: user.id,
-                username: user.username,
-                isAdmin: !!user.is_admin,
-                createdAt: user.created_at
-            },
-            token
-        });
+        json(res, 201, { user: serializeUser(user), token });
     },
 
     /**
@@ -66,8 +48,6 @@ export const authRoutes = {
      */
     async login(req, res) {
         const { username, password } = req.body;
-
-        console.log('Login attempt:', { username, hasPassword: !!password });
 
         if (!username || !password) {
             return json(res, 400, { error: 'Username and password required' });
@@ -88,15 +68,7 @@ export const authRoutes = {
         // Generate token
         const token = generateToken(user);
 
-        json(res, 200, {
-            user: {
-                id: user.id,
-                username: user.username,
-                isAdmin: !!user.is_admin,
-                createdAt: user.created_at
-            },
-            token
-        });
+        json(res, 200, { user: serializeUser(user), token });
     },
 
     /**
@@ -109,15 +81,7 @@ export const authRoutes = {
 
         const token = generateToken(user);
 
-        json(res, 200, {
-            user: {
-                id: user.id,
-                username: user.username,
-                isAdmin: !!user.is_admin,
-                createdAt: user.created_at
-            },
-            token
-        });
+        json(res, 200, { user: serializeUser(user), token });
     },
 
     /**
@@ -128,13 +92,6 @@ export const authRoutes = {
         const user = requireAuth(req, res);
         if (!user) return;
 
-        json(res, 200, {
-            user: {
-                id: user.id,
-                username: user.username,
-                isAdmin: !!user.is_admin,
-                createdAt: user.created_at
-            }
-        });
+        json(res, 200, { user: serializeUser(user) });
     }
 };

@@ -63,3 +63,17 @@ export function decodeToken(token) {
         return null;
     }
 }
+
+/**
+ * Serialize user object for API response
+ * @param {Object} user - Database user object
+ * @returns {Object} Serialized user
+ */
+export function serializeUser(user) {
+    return {
+        id: user.id,
+        username: user.username,
+        isAdmin: !!user.is_admin,
+        createdAt: user.created_at
+    };
+}
