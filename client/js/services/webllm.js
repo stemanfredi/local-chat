@@ -40,6 +40,7 @@ class WebLLMService {
                 id: m.model_id,
                 name: m.model_id.replace(/-MLC$/, '').replace(/-/g, ' '),
                 vram: m.vram_required_MB,
+                // Categorize by context window size
                 size: m.low_resource_required ? 'small' : 'large'
             }))
             .sort((a, b) => (a.vram || 0) - (b.vram || 0));
@@ -56,8 +57,10 @@ class WebLLMService {
             .filter(m => m.model_id.includes('embed'))
             .map(m => ({
                 id: m.model_id,
-                name: m.model_id.replace(/-MLC$/, '').replace(/-/g, ' ')
-            }));
+                name: m.model_id.replace(/-MLC$/, '').replace(/-/g, ' '),
+                vram: m.vram_required_MB
+            }))
+            .sort((a, b) => (a.vram || 0) - (b.vram || 0));
     }
 
     /**
@@ -327,6 +330,21 @@ class WebLLMService {
             id: this.currentEmbedModel,
             name: this.currentEmbedModel.replace(/-MLC$/, '').replace(/-/g, ' ')
         };
+    }
+
+    /**
+     * Check if a model is cached in browser storage
+     * @param {string} modelId - Model ID to check
+     * @returns {Promise<boolean>}
+     */
+    async hasModelInCache(modelId) {
+        await this.initLibrary();
+        try {
+            return await this.webllm.hasModelInCache(modelId);
+        } catch (e) {
+            // Fallback for older WebLLM versions
+            return false;
+        }
     }
 }
 

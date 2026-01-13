@@ -10,6 +10,17 @@ import { usersApi } from '../api/users.js';
 import { SYNC_MODES, THEMES, SETTINGS_KEYS } from '../../../shared/constants.js';
 
 /**
+ * Format model size - show GB if >= 1GB, otherwise MB
+ */
+function formatModelSize(vramMB) {
+    if (!vramMB) return '';
+    if (vramMB >= 1024) {
+        return ` (${(vramMB / 1024).toFixed(2)}GB)`;
+    }
+    return ` (${vramMB}MB)`;
+}
+
+/**
  * Panel component - shows Settings, Users, or Documents based on context
  */
 export class Panel {
@@ -85,20 +96,12 @@ export class Panel {
             ` : ''}
 
             <div class="panel-section">
-                <div class="panel-section-title">Appearance</div>
+                <div class="panel-section-title">Models</div>
                 <div class="panel-option">
-                    <label class="panel-label" for="theme-select">Theme</label>
-                    <select class="panel-select" id="theme-select">
-                        <option value="${THEMES.LIGHT}">Light</option>
-                        <option value="${THEMES.DARK}">Dark</option>
-                    </select>
+                    <button class="panel-btn" id="refresh-models-btn">Refresh Model List</button>
                 </div>
-            </div>
-
-            <div class="panel-section">
-                <div class="panel-section-title">Chat Model</div>
                 <div class="panel-option">
-                    <label class="panel-label" for="inference-model">Inference Model</label>
+                    <label class="panel-label" for="inference-model">Chat</label>
                     <select class="panel-select" id="inference-model">
                         <option value="">Loading models...</option>
                     </select>
@@ -107,23 +110,14 @@ export class Panel {
                     <button class="panel-btn-primary" id="load-model-btn">Load Model</button>
                 </div>
                 <div class="panel-option">
-                    <button class="panel-btn" id="refresh-models-btn">Refresh Model List</button>
-                </div>
-            </div>
-
-            <div class="panel-section">
-                <div class="panel-section-title">Embedding Model (RAG)</div>
-                <div class="panel-option">
-                    <label class="panel-label" for="embedding-model">Embedding Model</label>
+                    <label class="panel-label" for="embedding-model">Embedding (RAG)</label>
                     <select class="panel-select" id="embedding-model">
                         <option value="">Loading models...</option>
                     </select>
                     <p class="panel-hint">Required for document search in chat</p>
                 </div>
                 <div class="panel-option">
-                    <button class="panel-btn-primary" id="load-embed-model-btn">
-                        ${state.isEmbedModelLoading ? 'Loading...' : (webllm.isEmbeddingReady() ? 'Loaded' : 'Load Embedding Model')}
-                    </button>
+                    <button class="panel-btn-primary" id="load-embed-model-btn">Load Embedding Model</button>
                 </div>
             </div>
 
@@ -147,6 +141,17 @@ export class Panel {
                         </button>
                     </div>
                 ` : ''}
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-section-title">Appearance</div>
+                <div class="panel-option">
+                    <label class="panel-label" for="theme-select">Theme</label>
+                    <select class="panel-select" id="theme-select">
+                        <option value="${THEMES.LIGHT}">Light</option>
+                        <option value="${THEMES.DARK}">Dark</option>
+                    </select>
+                </div>
             </div>
 
             <div class="panel-section">
@@ -228,22 +233,44 @@ export class Panel {
         const modelSelect = $('#inference-model', this.contentEl);
         const syncModeSelect = $('#sync-mode', this.contentEl);
 
+        // Helper to update load button state
+        const updateLoadModelBtn = () => {
+            if (!loadModelBtn || !modelSelect) return;
+            const selectedModel = modelSelect.value;
+            const isLoaded = webllm.currentModel === selectedModel && webllm.isReady();
+            loadModelBtn.textContent = isLoaded ? 'Loaded' : 'Load Model';
+            loadModelBtn.disabled = isLoaded;
+        };
+
+        // Initial button state
+        updateLoadModelBtn();
+
         loadModelBtn?.addEventListener('click', async () => {
             const modelId = modelSelect?.value;
             if (!modelId) return;
 
+            loadModelBtn.disabled = true;
+            loadModelBtn.textContent = 'Loading...';
+
             await saveSetting(SETTINGS_KEYS.INFERENCE_MODEL, modelId);
             try {
                 await webllm.loadModel(modelId);
+                loadModelBtn.textContent = 'Loaded';
             } catch (error) {
+                loadModelBtn.textContent = 'Load Model';
+                loadModelBtn.disabled = false;
                 alert(`Failed to load model: ${error.message}`);
             }
         });
 
-        refreshModelsBtn?.addEventListener('click', () => this.loadModels());
+        refreshModelsBtn?.addEventListener('click', () => {
+            this.loadModels();
+            this.loadEmbedModels();
+        });
 
         modelSelect?.addEventListener('change', async () => {
             await saveSetting(SETTINGS_KEYS.INFERENCE_MODEL, modelSelect.value);
+            updateLoadModelBtn();
         });
 
         syncModeSelect?.addEventListener('change', async () => {
@@ -267,8 +294,21 @@ export class Panel {
         const embedModelSelect = $('#embedding-model', this.contentEl);
         const loadEmbedModelBtn = $('#load-embed-model-btn', this.contentEl);
 
+        // Helper to update embed button state
+        const updateLoadEmbedBtn = () => {
+            if (!loadEmbedModelBtn || !embedModelSelect) return;
+            const selectedModel = embedModelSelect.value;
+            const isLoaded = webllm.currentEmbedModel === selectedModel && webllm.isEmbeddingReady();
+            loadEmbedModelBtn.textContent = isLoaded ? 'Loaded' : 'Load Embedding Model';
+            loadEmbedModelBtn.disabled = isLoaded;
+        };
+
+        // Initial button state
+        updateLoadEmbedBtn();
+
         embedModelSelect?.addEventListener('change', async () => {
             await saveSetting(SETTINGS_KEYS.EMBEDDING_MODEL, embedModelSelect.value);
+            updateLoadEmbedBtn();
         });
 
         loadEmbedModelBtn?.addEventListener('click', async () => {
@@ -292,9 +332,8 @@ export class Panel {
                 }
             } catch (error) {
                 alert(`Failed to load embedding model: ${error.message}`);
-                loadEmbedModelBtn.textContent = 'Load Embedding Model';
-            } finally {
-                loadEmbedModelBtn.disabled = false;
+                updateLoadEmbedBtn();
+                return;
             }
         });
     }
@@ -307,16 +346,25 @@ export class Panel {
             this.models = await webllm.getAvailableModels();
             clearChildren(modelSelect);
 
+            // Check cache status for all models in parallel
+            const cacheChecks = await Promise.all(
+                this.models.map(m => webllm.hasModelInCache(m.id))
+            );
+            const cachedSet = new Set(
+                this.models.filter((_, i) => cacheChecks[i]).map(m => m.id)
+            );
+
             const small = this.models.filter(m => m.size === 'small');
             const large = this.models.filter(m => m.size === 'large');
 
             if (small.length > 0) {
                 const group = document.createElement('optgroup');
-                group.label = 'Smaller Models (Low VRAM)';
+                group.label = 'Small Context (1k tokens)';
                 for (const model of small) {
                     const option = document.createElement('option');
                     option.value = model.id;
-                    option.textContent = `${model.name}${model.vram ? ` (${model.vram}MB)` : ''}`;
+                    const cached = cachedSet.has(model.id) ? ' (cached)' : '';
+                    option.textContent = `${model.name}${formatModelSize(model.vram)}${cached}`;
                     if (model.id === state.inferenceModel) option.selected = true;
                     group.appendChild(option);
                 }
@@ -325,15 +373,24 @@ export class Panel {
 
             if (large.length > 0) {
                 const group = document.createElement('optgroup');
-                group.label = 'Larger Models';
+                group.label = 'Full Context';
                 for (const model of large) {
                     const option = document.createElement('option');
                     option.value = model.id;
-                    option.textContent = `${model.name}${model.vram ? ` (${model.vram}MB)` : ''}`;
+                    const cached = cachedSet.has(model.id) ? ' (cached)' : '';
+                    option.textContent = `${model.name}${formatModelSize(model.vram)}${cached}`;
                     if (model.id === state.inferenceModel) option.selected = true;
                     group.appendChild(option);
                 }
                 modelSelect.appendChild(group);
+            }
+
+            // Update load button state
+            const loadBtn = $('#load-model-btn', this.contentEl);
+            if (loadBtn) {
+                const isLoaded = webllm.currentModel === modelSelect.value && webllm.isReady();
+                loadBtn.textContent = isLoaded ? 'Loaded' : 'Load Model';
+                loadBtn.disabled = isLoaded;
             }
         } catch (error) {
             console.error('Failed to load models:', error);
@@ -354,10 +411,19 @@ export class Panel {
                 return;
             }
 
+            // Check cache status for all models in parallel
+            const cacheChecks = await Promise.all(
+                models.map(m => webllm.hasModelInCache(m.id))
+            );
+            const cachedSet = new Set(
+                models.filter((_, i) => cacheChecks[i]).map(m => m.id)
+            );
+
             for (const model of models) {
                 const option = document.createElement('option');
                 option.value = model.id;
-                option.textContent = model.name;
+                const cached = cachedSet.has(model.id) ? ' (cached)' : '';
+                option.textContent = `${model.name}${formatModelSize(model.vram)}${cached}`;
                 if (model.id === state.embeddingModel) option.selected = true;
                 modelSelect.appendChild(option);
             }
@@ -365,6 +431,14 @@ export class Panel {
             // Select first if none selected
             if (!state.embeddingModel && models.length > 0) {
                 modelSelect.value = models[0].id;
+            }
+
+            // Update load button state
+            const loadBtn = $('#load-embed-model-btn', this.contentEl);
+            if (loadBtn) {
+                const isLoaded = webllm.currentEmbedModel === modelSelect.value && webllm.isEmbeddingReady();
+                loadBtn.textContent = isLoaded ? 'Loaded' : 'Load Embedding Model';
+                loadBtn.disabled = isLoaded;
             }
         } catch (error) {
             console.error('Failed to load embedding models:', error);

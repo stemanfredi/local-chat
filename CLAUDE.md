@@ -142,12 +142,16 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 **ChatView**
 - Header with menu toggle, title, model status
 - Message list with streaming support
+- Message avatars: user's initial (or 'G' for guest), 'AI' for assistant
 - Markdown rendering: **bold**, *italic*, `code`, ```code blocks```, tables
 - Input with send button and @mention autocomplete for documents
 
 **Panel** (slides from right)
 - Mode: 'settings', 'users', or 'documents' (controlled by dropdown selection)
-- Settings: Account/login form (guest only), Appearance (theme), Chat Model, Embedding Model (RAG), Sync, About
+- Settings sections (in order): Account (guest only), Models, Sync, Appearance, About
+- Models section: Refresh button, Chat dropdown, Load button, Embedding dropdown, Load button
+- Model dropdowns: grouped by context size (Small Context 1k, Full Context), show VRAM, "(cached)" suffix for downloaded models
+- Load buttons: show "Loaded" and disabled when selected model is already loaded
 - Users: User list with admin toggle and delete (admin only)
 - Documents: Upload, manage, and embed documents for RAG (shows embedding status)
 
@@ -329,4 +333,16 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 
 **Additional:**
 - [x] Add markdown table rendering support to `parseMarkdown()`
+
+### UX Improvements (Jan 2026)
+
+- [x] Reorganize Settings panel: Models (combined), Sync, Appearance, About
+- [x] Model dropdowns show VRAM in GB/MB format
+- [x] Model dropdowns grouped by context size (Small Context 1k, Full Context)
+- [x] Embedding models sorted by VRAM ascending with size displayed
+- [x] Load buttons show "Loaded" and disabled when model already loaded
+- [x] Dynamic button state updates on dropdown change
+- [x] Refresh button updates both chat and embedding model lists
+- [x] Chat message avatars show user's initial (or 'G' for guest)
+- [x] Model cache indicator: "(cached)" suffix for already-downloaded models
 
