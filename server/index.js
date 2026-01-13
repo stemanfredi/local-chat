@@ -1,18 +1,42 @@
 import { createServer } from 'node:http';
+import { readFileSync } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import { join, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+
+// Load .env file if present (before other imports that may use env vars)
+const envPath = join(__dirname, '..', '.env');
+try {
+    const envContent = readFileSync(envPath, 'utf-8');
+    for (const line of envContent.split('\n')) {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#')) {
+            const eqIndex = trimmed.indexOf('=');
+            if (eqIndex > 0) {
+                const key = trimmed.slice(0, eqIndex).trim();
+                const value = trimmed.slice(eqIndex + 1).trim();
+                if (!process.env[key]) {
+                    process.env[key] = value;
+                }
+            }
+        }
+    }
+} catch {
+    // No .env file, use defaults
+}
+
 import { handleApiRequest } from './router.js';
 
 // Initialize database (runs schema)
 import './db/index.js';
 
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const CLIENT_DIR = join(__dirname, '..', 'client');
 const SHARED_DIR = join(__dirname, '..', 'shared');
 
 const PORT = process.env.PORT || 3000;
-const HOST = process.env.HOST || '0.0.0.0';
+const HOST = process.env.HOST || 'localhost';
 
 // MIME types
 const MIME_TYPES = {
