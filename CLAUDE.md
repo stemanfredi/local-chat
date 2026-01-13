@@ -61,6 +61,9 @@ local-chat/
 │
 ├── client/
 │   ├── index.html
+│   ├── manifest.json          # PWA manifest
+│   ├── sw.js                  # Service worker
+│   ├── assets/icons/          # PWA icons (192, 512, maskable)
 │   ├── css/
 │   │   ├── main.css
 │   │   ├── variables.css
@@ -73,6 +76,9 @@ local-chat/
 │       ├── services/      # webllm, sync, documents, rag
 │       ├── components/    # sidebar, chat-view, panel
 │       └── utils/         # dom, events
+│
+├── scripts/
+│   └── generate-icons.cjs # PWA icon generator (uses sharp)
 │
 └── data/                  # Runtime data (gitignored)
 ```
@@ -234,13 +240,42 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 - `synced`: In sync with server
 - `pending`: Modified locally since last sync
 
+### PWA
+
+**Service Worker** (sw.js):
+- Caches static assets on install
+- Cache-first strategy for app files
+- Network-only for API requests and external CDN
+- Offline fallback to cached index.html
+
+**Install**:
+- Uses browser's native install prompt (Chrome/Edge "Add to Home Screen")
+- No in-app install button (browser native is better UX)
+
+**Icons**:
+- Generated via `node scripts/generate-icons.cjs` (requires sharp dev dependency)
+- Sizes: 192x192, 512x512, 512x512 maskable
+
+### Mobile Responsive
+
+**Viewport fix** (Android Chrome 100vh issue):
+- Uses `position: fixed; inset: 0` instead of `height: 100vh` on mobile
+- Applied to: `.app`, `.sidebar`, `.panel`, `.sidebar-overlay`
+- Flexbox with `min-height: 0` for scrollable areas
+
+**Sidebar** (mobile):
+- Slides in from left as overlay
+- Dark backdrop overlay (tap to close)
+- Starts collapsed, toggle via hamburger menu
+- z-index above main content
+
+**Touch targets**:
+- Minimum 44px for all interactive elements
+- 16px font-size on inputs (prevents iOS zoom)
+
 ---
 
 ## Tasks
-
-### Current
-
-- [ ] Phase 6: PWA manifest + service worker + UI polish
 
 ### Done
 
@@ -250,12 +285,5 @@ Rules: subject <=50 chars, lowercase, no period, imperative mood
 - [x] Phase 3: Server sync + pure offline/offline-first toggle
 - [x] Phase 4: Document library + parsing (pdf.js, mammoth)
 - [x] Phase 5: RAG with embedding + retrieval in chat
+- [x] Phase 6: PWA manifest + service worker + install prompt
 
----
-
-## When to Extract
-
-Extract a section to `docs/specs/[name].md` when:
-- Section exceeds ~100 lines
-- Multiple files need to reference it
-- It changes independently of other sections

@@ -543,15 +543,183 @@ body {
     border: 0;
 }
 
-/* Responsive */
+/* Responsive - Mobile */
 @media (max-width: 768px) {
-    .sidebar {
-        position: fixed;
-        left: 0;
-        top: 0;
+    /*
+     * Mobile viewport fix: Use position:fixed with inset:0 instead of 100vh
+     * This handles Android Chrome's dynamic toolbar correctly
+     */
+
+    /* Root elements fill viewport */
+    html, body {
+        height: 100%;
+        overflow: hidden;
     }
 
-    .sidebar:not(.collapsed) + .main {
-        margin-left: 0;
+    /* App container - fixed to viewport edges */
+    .app {
+        position: fixed;
+        inset: 0;
+        height: auto;
+    }
+
+    /* Main content fills app */
+    .main {
+        width: 100%;
+        height: 100%;
+        margin-left: 0 !important;
+    }
+
+    /* Sidebar - fixed overlay on left */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        height: auto;
+        width: 85vw;
+        max-width: 320px;
+        box-shadow: var(--shadow-lg);
+        z-index: var(--z-modal);
+    }
+
+    .sidebar.collapsed {
+        transform: translateX(-100%);
+        width: 85vw;
+        max-width: 320px;
+    }
+
+    /* Sidebar overlay backdrop */
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: calc(var(--z-modal) - 1);
+    }
+
+    .sidebar-overlay.visible {
+        display: block;
+    }
+
+    /* Header */
+    .header {
+        flex-shrink: 0;
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+
+    .header-title {
+        font-size: var(--font-size-sm);
+    }
+
+    .model-status {
+        padding: var(--spacing-xs);
+        font-size: 10px;
+    }
+
+    /* Chat area - flex child that scrolls */
+    .chat-container {
+        flex: 1;
+        min-height: 0;
+        padding: var(--spacing-md);
+    }
+
+    .chat-messages {
+        gap: var(--spacing-md);
+    }
+
+    /* Input area - fixed at bottom */
+    .input-container {
+        flex-shrink: 0;
+        padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
+    }
+
+    .chat-input {
+        font-size: 16px;
+        padding: var(--spacing-sm);
+        padding-right: 48px;
+        min-height: 44px;
+    }
+
+    .send-btn {
+        width: 36px;
+        height: 36px;
+        right: var(--spacing-xs);
+        bottom: var(--spacing-xs);
+    }
+
+    /* Messages */
+    .message {
+        gap: var(--spacing-sm);
+    }
+
+    .message-avatar {
+        width: 28px;
+        height: 28px;
+        font-size: var(--font-size-xs);
+    }
+
+    .message-role {
+        font-size: var(--font-size-xs);
+    }
+
+    .message-text {
+        font-size: var(--font-size-sm);
+    }
+
+    .message-text pre {
+        padding: var(--spacing-sm);
+        font-size: var(--font-size-xs);
+    }
+
+    /* Empty state */
+    .empty-state {
+        padding: var(--spacing-lg);
+    }
+
+    .empty-state-icon {
+        font-size: 36px;
+    }
+
+    .empty-state-title {
+        font-size: var(--font-size-lg);
+    }
+
+    .empty-state-text {
+        font-size: var(--font-size-sm);
+    }
+
+    /* Mention autocomplete */
+    .mention-autocomplete {
+        max-height: 150px;
+    }
+
+    .mention-item {
+        padding: var(--spacing-sm);
+    }
+
+    /* Model loading overlay */
+    .model-loading-text {
+        font-size: var(--font-size-base);
+    }
+
+    .model-loading-progress {
+        width: 250px;
+    }
+
+    /* Touch-friendly targets (min 44px) */
+    .menu-btn,
+    .close-btn,
+    .new-chat-btn {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .chat-item {
+        min-height: 44px;
+    }
+
+    .settings-btn {
+        min-height: 44px;
     }
 }

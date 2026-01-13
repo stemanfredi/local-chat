@@ -37,7 +37,24 @@ class App {
         await this.autoLoadModel();
         await this.autoLoadEmbedModel();
 
+        // Register service worker for PWA
+        this.registerServiceWorker();
+
         console.log('Local Chat initialized');
+    }
+
+    /**
+     * Register service worker for offline support
+     */
+    async registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            try {
+                const registration = await navigator.serviceWorker.register('/sw.js');
+                console.log('Service Worker registered:', registration.scope);
+            } catch (error) {
+                console.error('Service Worker registration failed:', error);
+            }
+        }
     }
 
     /**

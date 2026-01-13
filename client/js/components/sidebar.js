@@ -10,8 +10,28 @@ export class Sidebar {
     constructor(container) {
         this.container = container;
         this.menuOpen = false;
+        this.isMobile = window.innerWidth <= 768;
         this.render();
+        this.createOverlay();
         this.bindEvents();
+
+        // Start collapsed on mobile
+        if (this.isMobile) {
+            this.container.classList.add('collapsed');
+        }
+    }
+
+    createOverlay() {
+        // Create overlay element for mobile (inside .app for proper z-index)
+        this.overlay = document.createElement('div');
+        this.overlay.className = 'sidebar-overlay';
+        const app = document.querySelector('.app');
+        app.appendChild(this.overlay);
+
+        // Click overlay to close sidebar
+        this.overlay.addEventListener('click', () => {
+            this.hide();
+        });
     }
 
     render() {
@@ -214,6 +234,10 @@ export class Sidebar {
         // New chat button
         $('#new-chat-btn', this.container).addEventListener('click', async () => {
             await createChat();
+            // Close sidebar on mobile after creating chat
+            if (this.isMobile) {
+                this.hide();
+            }
         });
 
         // User menu button
@@ -229,6 +253,11 @@ export class Sidebar {
             }
         });
 
+        // Update mobile state on resize
+        window.addEventListener('resize', () => {
+            this.checkMobile();
+        });
+
         // Listen for state changes
         events.on(EVENTS.CHAT_CREATED, () => this.renderChatList());
         events.on(EVENTS.CHAT_UPDATED, () => this.renderChatList());
@@ -242,17 +271,36 @@ export class Sidebar {
 
     async onChatClick(localId) {
         await selectChat(localId);
+        // Close sidebar on mobile after selecting chat
+        if (this.isMobile) {
+            this.hide();
+        }
     }
 
     toggle() {
-        this.container.classList.toggle('collapsed');
+        if (this.container.classList.contains('collapsed')) {
+            this.show();
+        } else {
+            this.hide();
+        }
     }
 
     show() {
         this.container.classList.remove('collapsed');
+        if (this.isMobile) {
+            this.overlay.classList.add('visible');
+        }
     }
 
     hide() {
         this.container.classList.add('collapsed');
+        this.overlay.classList.remove('visible');
+    }
+
+    /**
+     * Check if currently mobile viewport
+     */
+    checkMobile() {
+        this.isMobile = window.innerWidth <= 768;
     }
 }
